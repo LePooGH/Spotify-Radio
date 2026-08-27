@@ -5,6 +5,7 @@ Wichtig: Dieses Modul spielt keine Musik selbst ab, sondern steuert per
 Fernbedienung ein Spotify-Connect-Zielgeraet - im Dev-Modus z.B. dein Handy
 mit geoeffneter Spotify-App, spaeter auf dem Pi raspotify/librespot.
 """
+import json
 import re
 import time
 
@@ -57,6 +58,12 @@ class SpotifyModule:
         # wiederholte, unnoetige transfer_playback-Aufrufe fuer dasselbe
         # Geraet innerhalb derselben Sitzung.
         self._activated_device_id = None
+        # Merkt sich den zuletzt auf die Festplatte geschriebenen Titel-URI,
+        # um nicht bei jedem 2-Sekunden-Status-Poll unnoetig neu zu
+        # schreiben, sondern nur bei einem tatsaechlichen Titelwechsel
+        # (siehe get_status/_save_last_played).
+        self._last_saved_uri = None
+        self._last_played_path = ".last_played.json"
         # Suchergebnisse werden herausgefiltert, wenn Songtitel/Album/Interpret
         # eines dieser Woerter enthaelt bzw. einer dieser Interpreten ist.
         # Konfiguriert in config.py, damit man die Liste ohne Code-Aenderung
@@ -602,8 +609,21 @@ class SpotifyModule:
         device_id = self._get_device_id()
         try:
             self.sp.start_playback(device_id=device_id)
+            return
         except spotipy.SpotifyException:
-            self._clear_device_cache()
+            pass
+        # Kein aktiver Kontext zum Fortsetzen (z.B. frisch gestartete App,
+        # noch nichts abgespielt seit dem Start) - stattdessen den zuletzt
+        # gespeicherten Titel starten, falls vorhanden (siehe
+        # get_last_played/Chat-Verlauf).
+        last = self.get_last_played()
+        if last and last.get("uri"):
+            try:
+                self.play_uri(last["uri"])
+                return
+            except Exception:
+                pass
+        self._clear_device_cache()
 
     def next_track(self):
         device_id = self._get_device_id()
@@ -630,7 +650,7 @@ class SpotifyModule:
         if not current or not current.get("item"):
             return {"active": False}
         item = current["item"]
-        return {
+        status = {
             "active": True,
             "is_playing": current.get("is_playing", False),
             "uri": item["uri"],
@@ -646,6 +666,40 @@ class SpotifyModule:
             "shuffle_state": current.get("shuffle_state", False),
             "repeat_state": current.get("repeat_state", "off"),
         }
+        # Zuletzt gespielten Titel auf der Festplatte merken, damit er beim
+        # naechsten App-Start wieder angezeigt/fortgesetzt werden kann (siehe
+        # Chat-Verlauf). Nur bei einem Titelwechsel schreiben, nicht bei
+        # jedem 2-Sekunden-Poll - unnoetige Schreibzugriffe vermeiden.
+        if status["uri"] != self._last_saved_uri:
+            self._last_saved_uri = status["uri"]
+            self._save_last_played(status)
+        return status
+
+    def _save_last_played(self, status):
+        data = {
+            "uri": status.get("uri"),
+            "name": status.get("name"),
+            "artist": status.get("artist"),
+            "album_name": status.get("album_name"),
+            "album_cover": status.get("album_cover"),
+            "album_id": status.get("album_id"),
+        }
+        try:
+            with open(self._last_played_path, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except OSError:
+            pass  # Persistierung ist ein Komfort-Feature, kein Muss
+
+    def get_last_played(self):
+        """Liefert den zuletzt gespielten Titel aus der Festplatten-
+        Zwischenspeicherung, oder None, falls noch nie etwas gespielt wurde.
+        Wird beim App-Start genutzt, um "Aktuelles Album" schon vor der
+        ersten echten Wiedergabe anzuzeigen (siehe Frontend)."""
+        try:
+            with open(self._last_played_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return None
 
     def set_repeat(self, mode):
         """mode: 'track' (Titel wiederholen), 'context' (Playlist/Album
