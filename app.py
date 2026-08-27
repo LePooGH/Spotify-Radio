@@ -478,7 +478,14 @@ def usb_play():
 
 @app.route("/api/update/check")
 def update_check():
-    return jsonify(updater.check_for_update())
+    # Explizit unzwischenspeicherbar - ohne das haben manche Browser die
+    # JSON-Antwort dieser GET-Route zwischengespeichert, wodurch der
+    # "Update verfuegbar"-Hinweis auch nach einem erfolgreichen Update
+    # weiter angezeigt wurde, obwohl das Backend bereits korrekt "kein
+    # Update mehr verfuegbar" gemeldet hat (siehe Chat-Verlauf).
+    response = jsonify(updater.check_for_update())
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.route("/api/update/apply", methods=["POST"])

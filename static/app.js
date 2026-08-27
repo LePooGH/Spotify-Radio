@@ -235,7 +235,7 @@ const updateButton = document.getElementById("update-button");
 
 async function checkForUpdate() {
   try {
-    const res = await fetch("/api/update/check");
+    const res = await fetch("/api/update/check", { cache: "no-store" });
     const data = await res.json();
     updateButton.hidden = !data.update_available;
   } catch (err) {
