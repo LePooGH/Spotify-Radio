@@ -1,0 +1,34 @@
+[Unit]
+# Startet die Radio-App automatisch beim Hochfahren des Pi.
+# Wartet auf das Netzwerk, da die App Spotify/Radio-Browser/librespot
+# braucht, die alle eine Internetverbindung benoetigen.
+Description=Spotify-Radio (Spotty)
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# WICHTIG: Diese drei Zeilen an deine tatsaechliche Installation anpassen -
+# Platzhalter <BENUTZER> und <PROJEKTPFAD> ersetzen (z.B. "pi" und
+# "/home/pi/spotify-radio").
+User=<BENUTZER>
+WorkingDirectory=<PROJEKTPFAD>
+ExecStart=<PROJEKTPFAD>/venv/bin/python <PROJEKTPFAD>/app.py
+
+# Startet die App automatisch neu, falls sie mal abstuerzt (z.B. durch
+# einen voruebergehenden Netzwerkausfall) - WICHTIG auch fuers Selbst-Update
+# (siehe modules/updater.py): Nach einem erfolgreichen Update beendet sich
+# die App bewusst selbst, damit genau dieser Mechanismus sie automatisch
+# mit dem neuen Code neu startet.
+Restart=on-failure
+RestartSec=5
+
+# Sorgt dafuer, dass Umgebungsvariablen aus der .env-Datei nicht extra
+# noetig sind - python-dotenv (falls genutzt) liest .env ohnehin relativ
+# zum WorkingDirectory. Falls PLATFORM nicht schon in der .env auf "pi"
+# gesetzt ist, hier zur Sicherheit explizit setzen:
+Environment=PLATFORM=pi
+
+[Install]
+WantedBy=multi-user.target

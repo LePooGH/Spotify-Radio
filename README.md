@@ -162,6 +162,33 @@ gesetzt hat) startet systemd sie automatisch mit dem neuen Code neu. Im
 Dev-Modus (ohne systemd) musst du `python app.py` danach manuell neu
 starten.
 
+## Selbst-Update über GitHub
+
+Liegt im konfigurierten GitHub-Repository (`origin`-Remote) ein neuerer
+Commit vor als der lokale Stand, erscheint oben in der App automatisch ein
+Update-Hinweis. Antippen installiert das Update direkt (`git fetch` +
+`git reset --hard` auf den Remote-Branch, danach `pip install -r
+requirements.txt` falls sich Abhängigkeiten geändert haben).
+
+**Voraussetzung:** Der Projektordner muss ein Git-Repository mit
+eingerichtetem `origin`-Remote sein (z.B. durch `git clone` beim
+Einrichten, oder nachträglich `git remote add origin <repo-url>` wie im
+Chat-Verlauf beschrieben) - ohne das erscheint einfach nie ein
+Update-Hinweis, kein Fehler.
+
+**Nach der Installation:** Die App beendet sich kurz danach selbst. Auf dem
+Pi (systemd-Service mit `Restart=on-failure`, siehe `deploy/`) startet sie
+sich dadurch automatisch mit dem neuen Code neu. Im Dev-Modus ohne systemd
+muss `python app.py` danach manuell neu gestartet werden.
+
+**Wichtig:** `git reset --hard` verwirft dabei lokale, nicht committete
+Änderungen an versionierten Dateien - nicht versionierte Dateien wie `.env`
+(siehe `.gitignore`) sind davon nicht betroffen und bleiben erhalten.
+
+Die Prüfung läuft automatisch alle 5 Minuten im Hintergrund (eigenes,
+selteneres Intervall als der normale 2-Sekunden-Status-Poll, da eine echte
+Netzwerkanfrage an GitHub involviert ist).
+
 ## Zuletzt gespielter Titel wird gemerkt
 
 Der zuletzt gespielte Titel (inkl. Album, Cover, Interpret) wird in

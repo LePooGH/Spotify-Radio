@@ -24,6 +24,8 @@ Passwort-Login wurde von Spotify inzwischen ohnehin abgeschaltet.
 """
 import os
 import subprocess
+import threading
+import time
 
 
 class SpotifyConnectDaemon:
@@ -41,7 +43,14 @@ class SpotifyConnectDaemon:
         """Startet librespot im Hintergrund, falls es nicht schon laeuft.
         Gibt bewusst KEINEN Fehler nach aussen weiter, wenn librespot fehlt
         oder nicht startet - die App soll trotzdem ganz normal weiterlaufen
-        (dann eben mit einem externen Connect-Geraet wie bisher)."""
+        (dann eben mit einem externen Connect-Geraet wie bisher). Prueft
+        aber aktiv, ob der Prozess kurz nach dem Start noch laeuft, statt
+        blind "erfolgreich gestartet" zu melden - sonst bleibt ein
+        sofortiger Absturz (z.B. durch ein falsches --backend) unbemerkt im
+        Hintergrund, waehrend die App faelschlich Erfolg meldet (siehe
+        Chat-Verlauf: genau das ist zwischenzeitlich durch einen
+        Umgebungs-Reset wieder verloren gegangen und hat erneut fuer
+        Verwirrung gesorgt)."""
         if self._unavailable:
             return
         if self._process is not None and self._process.poll() is None:
@@ -58,14 +67,9 @@ class SpotifyConnectDaemon:
                     "--initial-volume", str(self.initial_volume),
                     "--bitrate", "320",
                 ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            print(
-                f"[Spotify-Connect] {self.binary_name} gestartet als Geraet "
-                f"'{self.device_name}' (Backend: {self.backend}). Falls "
-                f"das Geraet noch nie verbunden wurde, einmalig in der "
-                f"Spotify-App aus der Connect-Geraeteliste auswaehlen."
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
             )
         except FileNotFoundError:
             self._unavailable = True
@@ -75,6 +79,45 @@ class SpotifyConnectDaemon:
                 "ein externes Connect-Geraet (Handy/Spotify-App). "
                 "Installationshinweise siehe README."
             )
+            return
+
+        # Kurz warten und pruefen, ob der Prozess sofort wieder abgestuerzt
+        # ist (z.B. wegen eines nicht unterstuetzten --backend-Werts) -
+        # solche Startfehler passieren typischerweise innerhalb der ersten
+        # ein bis zwei Sekunden.
+        time.sleep(1.5)
+        if self._process.poll() is not None:
+            output = self._process.stdout.read() if self._process.stdout else ""
+            print(
+                f"[Spotify-Connect] '{self.binary_name}' ist direkt nach dem "
+                f"Start abgestuerzt (Exit-Code {self._process.returncode}). "
+                f"Spotify-Wiedergabe erfordert bis zur Behebung weiterhin ein "
+                f"externes Connect-Geraet. Fehlerausgabe:\n{output.strip()}"
+            )
+            self._process = None
+            return
+
+        print(
+            f"[Spotify-Connect] {self.binary_name} laeuft als Geraet "
+            f"'{self.device_name}' (Backend: {self.backend}). Falls "
+            f"das Geraet noch nie verbunden wurde, einmalig in der "
+            f"Spotify-App aus der Connect-Geraeteliste auswaehlen."
+        )
+        # Ab jetzt laeuft der Prozess dauerhaft im Hintergrund weiter - die
+        # Ausgabe muss kontinuierlich abgeholt (und hier bewusst verworfen)
+        # werden, sonst koennte der interne Puffer irgendwann volllaufen und
+        # librespot beim Schreiben blockieren.
+        threading.Thread(target=self._drain_output, daemon=True).start()
+
+    def _drain_output(self):
+        process = self._process
+        if not process or not process.stdout:
+            return
+        try:
+            for _ in process.stdout:
+                pass
+        except (OSError, ValueError):
+            pass
 
     def stop(self):
         """Beendet librespot sauber - wird beim Herunterfahren der App

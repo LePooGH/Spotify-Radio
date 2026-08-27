@@ -5,6 +5,7 @@ __pycache__/
 .spotify_cache
 .spotify_catalog_cache.json
 .spotify_artist_id_cache.json
+.last_played.json
 .librespot_cache/
 sample_usb/*
 !sample_usb/.gitkeep

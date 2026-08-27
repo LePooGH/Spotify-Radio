@@ -1,0 +1,42 @@
+[Unit]
+# Startet Chromium im Vollbild-Kiosk-Modus auf dem Touchdisplay, sobald die
+# grafische Oberflaeche des Pi bereit ist. Wartet zusaetzlich kurz, damit
+# der Flask-Server (spotify-radio.service) garantiert schon erreichbar ist,
+# bevor der Browser die Seite laedt.
+Description=Spotty-Radio Kiosk-Browser
+After=graphical-session.target spotify-radio.service
+Wants=spotify-radio.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+
+# Kurze Pause, damit der Flask-Server sicher schon laeuft, bevor der
+# Browser versucht, die Seite zu laden (sonst evtl. eine Fehlerseite beim
+# allerersten Start).
+ExecStartPre=/bin/sleep 5
+
+# --kiosk: Vollbild ohne Adressleiste/Fenster-Dekoration
+# --noerrdialogs / --disable-infobars: keine stoerenden Hinweis-Popups
+# --check-for-update-interval=31536000: verhindert Update-Benachrichtigungen
+# --disable-pinch: verhindert versehentliches Zoomen per Touch-Geste
+ExecStart=/usr/bin/chromium-browser \
+  --kiosk \
+  --noerrdialogs \
+  --disable-infobars \
+  --disable-session-crashed-bubble \
+  --disable-pinch \
+  --overscroll-history-navigation=0 \
+  --check-for-update-interval=31536000 \
+  http://127.0.0.1:5000
+
+Restart=on-failure
+RestartSec=5
+
+# Braucht Zugriff auf die grafische Oberflaeche - laeuft deshalb als
+# User-Service (nicht als System-Service wie spotify-radio.service),
+# siehe Installationshinweise in der README.
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=graphical-session.target
