@@ -75,25 +75,18 @@ body {
   cursor: pointer;
 }
 
+/* Ohne das gewinnt "display: block" oben IMMER gegen das hidden-Attribut,
+   egal was JS per updateButton.hidden = true/false setzt - Autoren-CSS
+   schlaegt die eingebaute [hidden]{display:none}-Regel des Browsers,
+   unabhaengig von der Spezifitaet (derselbe Fehlertyp, der ganz am Anfang
+   schon bei den Shuffle/Repeat-Buttons aufgetreten ist). */
+.update-banner[hidden] {
+  display: none;
+}
+
 .update-banner:disabled {
   opacity: 0.7;
   cursor: default;
-}
-
-.update-banner {
-  display: block;
-  width: 100%;
-  flex-shrink: 0;
-  text-align: center;
-  padding: 8px;
-  margin-bottom: 14px;
-  border-radius: 10px;
-  background: transparent;
-  border: 1px solid var(--brass);
-  color: var(--brass);
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
 }
 
 .update-banner:hover { background: rgba(197, 161, 90, 0.12); }
