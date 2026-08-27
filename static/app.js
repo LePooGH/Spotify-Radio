@@ -14,6 +14,7 @@ const state = {
   activeAlbumUri: null,
   activePlaylistId: null,
   usbActiveDevicePath: null,
+  lastPlayedShown: false,
   playlistsCache: null,
   shuffleOn: false,
   repeatMode: "off",
@@ -226,6 +227,50 @@ function updateSpotifyActiveTrack(uri) {
 setInterval(refreshStatus, 2000);
 refreshStatus();
 
+// --- Selbst-Update ueber Git/GitHub -----------------------------------------
+// Eigenes, deutlich selteneres Intervall als der normale Status-Poll (alle
+// 5 Minuten statt alle 2 Sekunden) - eine Update-Pruefung braucht eine
+// echte Netzwerkanfrage an GitHub, das muss nicht im Sekundentakt laufen.
+const updateButton = document.getElementById("update-button");
+
+async function checkForUpdate() {
+  try {
+    const res = await fetch("/api/update/check");
+    const data = await res.json();
+    updateButton.hidden = !data.update_available;
+  } catch (err) {
+    // still ignorieren - kein Update-Hinweis ist harmloser als ein
+    // stoerender Fehler fuer ein reines Komfort-Feature
+  }
+}
+
+updateButton.addEventListener("click", async () => {
+  updateButton.disabled = true;
+  updateButton.textContent = "Wird aktualisiert…";
+  try {
+    const res = await fetch("/api/update/apply", { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      updateButton.textContent = "Update installiert - Neustart läuft…";
+      // Die App beendet sich serverseitig kurz danach selbst (siehe
+      // app.py) - nach ein paar Sekunden warten und die Seite neu laden,
+      // damit sie mit dem neuen Code wieder erreichbar ist.
+      setTimeout(() => window.location.reload(), 6000);
+    } else {
+      updateButton.textContent = "⬆ Update verfügbar - antippen zum Installieren";
+      updateButton.disabled = false;
+      alert(`Update fehlgeschlagen: ${data.error || "unbekannter Fehler"}`);
+    }
+  } catch (err) {
+    updateButton.textContent = "⬆ Update verfügbar - antippen zum Installieren";
+    updateButton.disabled = false;
+    alert("Update fehlgeschlagen (keine Verbindung zum Server).");
+  }
+});
+
+checkForUpdate();
+setInterval(checkForUpdate, 5 * 60 * 1000);
+
 els.playPause.addEventListener("click", async () => {
   const isPlaying = els.playPause.textContent === "⏸";
   await fetch(isPlaying ? "/api/pause" : "/api/play", { method: "POST" });
@@ -251,6 +296,28 @@ function highlightActiveTrack() {
   });
 }
 
+async function showLastPlayedIfAvailable() {
+  try {
+    const res = await fetch("/api/spotify/last_played");
+    const last = await res.json();
+    if (!last.uri) {
+      return; // noch nie etwas gespielt - bleibt bei "Kein Album aktiv"
+    }
+    els.currentAlbumName.textContent = last.name || "—";
+    els.currentAlbumArtist.textContent = last.artist || "\u00A0";
+    if (last.album_cover) {
+      els.currentAlbumCover.src = last.album_cover;
+      els.currentAlbumCover.hidden = false;
+    } else {
+      els.currentAlbumCover.hidden = true;
+    }
+    els.currentAlbumTracks.innerHTML =
+      '<li class="result-empty">Zuletzt gespielt - ▶ drücken zum Fortsetzen.</li>';
+  } catch (err) {
+    // still bei "Kein Album aktiv" bleiben, kein Fehler-Popup fuer diesen Komfort-Fall
+  }
+}
+
 async function updateCurrentAlbumPanel(data) {
   if (state.rightPanelMode !== "auto") {
     // Die rechte Spalte ist "angepinnt" (USB-Ordner-Ansicht oder eine manuell
@@ -261,6 +328,18 @@ async function updateCurrentAlbumPanel(data) {
   if (data.source !== "spotify" || !data.active || !data.album_id) {
     state.currentAlbumId = null;
     state.currentTrackUri = null;
+    if (data.source === "spotify" && !data.active) {
+      // Spotify ist die aktive Quelle, aber gerade laeuft nichts (z.B.
+      // frischer App-Start, noch nicht auf Play gedrueckt) - zuletzt
+      // gespielten Titel anzeigen, damit man sieht, was ▶ fortsetzen wuerde.
+      // Nur EINMAL versuchen, nicht bei jedem 2-Sekunden-Poll erneut.
+      if (!state.lastPlayedShown) {
+        state.lastPlayedShown = true;
+        await showLastPlayedIfAvailable();
+      }
+      return;
+    }
+    state.lastPlayedShown = false;
     els.currentAlbumCover.hidden = true;
     els.currentAlbumName.textContent = "Kein Album aktiv";
     els.currentAlbumArtist.textContent = "\u00A0";
@@ -268,6 +347,7 @@ async function updateCurrentAlbumPanel(data) {
     return;
   }
 
+  state.lastPlayedShown = false; // etwas laeuft jetzt echt - Flag fuers naechste Leerlauf-Phase zuruecksetzen
   state.currentTrackUri = data.uri || null;
 
   if (data.album_id === state.currentAlbumId) {
