@@ -1,0 +1,632 @@
+:root {
+  --chassis: #1b1815;
+  --panel: #262019;
+  --panel-raised: #322a20;
+  --dial-glow: #5dd973;
+  --dial-glow-dim: #3f7a4a;
+  --cream: #f0e6d6;
+  --cream-dim: #b8ab95;
+  --brass: #b8934f;
+  --brass-dark: #7a5f33;
+  --on-glow: #10240f;
+  --radius: 18px;
+  --font-display: 'Share Tech Mono', monospace;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d0b09;
+  font-family: var(--font-body);
+  color: var(--cream);
+  padding: 24px;
+}
+
+.radio-chassis {
+  width: 100%;
+  max-width: 1040px;
+  height: calc(100vh - 48px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, var(--chassis), #100e0c);
+  border-radius: 28px;
+  border: 1px solid #000;
+  box-shadow:
+    0 0 0 3px var(--brass-dark),
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 20px;
+}
+
+.auth-banner {
+  display: block;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 10px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: var(--dial-glow);
+  color: var(--on-glow);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.source-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 8px;
+  border: 1px solid var(--brass-dark);
+  background: var(--panel);
+  color: var(--cream-dim);
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--dial-glow-dim);
+  color: var(--cream);
+  border-color: var(--dial-glow);
+}
+
+.dial-display {
+  background: #100d0a;
+  border-radius: var(--radius);
+  border: 1px solid #000;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7), inset 0 0 30px rgba(93, 217, 115, 0.06);
+  padding: 20px;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.now-cover {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 0 12px rgba(93, 217, 115, 0.3);
+  flex-shrink: 0;
+}
+
+.now-info { flex: 1; min-width: 0; }
+
+.now-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--dial-glow);
+  text-shadow: 0 0 8px rgba(93, 217, 115, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now-subtitle {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--cream-dim);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  min-height: 18px;
+}
+
+.now-subtitle.marquee {
+  text-overflow: unset;
+  mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+}
+
+.marquee-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  /* Keine CSS-Keyframes mehr - die Animation wird per JavaScript (Web
+     Animations API) gestartet, das die tatsaechliche Textbreite misst und
+     Distanz/Dauer entsprechend berechnet (siehe app.js). Nur so laesst
+     sich garantieren, dass unterschiedlich lange Titel immer komplett
+     durchlaufen, bevor sie von vorne beginnen. */
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.transport-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--brass-dark);
+  background: radial-gradient(circle at 35% 30%, #3a3128, #201b15);
+  color: var(--cream);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #000, 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.transport-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #000;
+}
+
+.transport-btn--main {
+  width: 72px;
+  height: 72px;
+  font-size: 26px;
+  background: radial-gradient(circle at 35% 30%, var(--dial-glow), var(--brass-dark));
+  color: var(--on-glow);
+  border-color: var(--dial-glow);
+}
+
+.transport-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.volume-icon { font-size: 18px; opacity: 0.7; }
+
+input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--dial-glow), var(--dial-glow-dim));
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brass);
+  border: 2px solid var(--on-glow);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brass);
+  border: 2px solid var(--on-glow);
+  cursor: pointer;
+}
+
+.source-panel { display: none; }
+.source-panel.active { display: block; }
+
+.search-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-form input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--brass-dark);
+  background: var(--panel);
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.search-form input::placeholder { color: var(--cream-dim); }
+
+.search-form button, .secondary-btn {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--dial-glow);
+  color: var(--on-glow);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+}
+
+.result-item:hover, .result-item:active {
+  background: var(--panel-raised);
+}
+
+.result-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.result-title { font-weight: 600; font-size: 15px; }
+.result-subtitle { font-size: 13px; color: var(--cream-dim); }
+
+.result-text { flex: 1; min-width: 0; }
+
+.album-cover-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: visible;
+  background: var(--panel-raised);
+}
+
+.album-cover-wrap img {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+
+.folder-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.album-play-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(10, 8, 6, 0.85);
+  border: 1px solid var(--dial-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.album-play-badge::after {
+  content: "";
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--dial-glow);
+  margin-left: 2px;
+}
+
+.album-expand-toggle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dark);
+  background: var(--panel);
+  color: var(--cream-dim);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.album-expand-toggle:hover,
+.album-expand-toggle.expanded {
+  color: var(--dial-glow);
+  border-color: var(--dial-glow);
+}
+
+.album-tracks-wrapper {
+  margin: 2px 0 8px;
+}
+
+.album-tracks {
+  list-style: none;
+  margin: 6px 0 6px 14px;
+  padding: 4px 0 4px 12px;
+  border-left: 2px solid var(--brass-dark);
+  max-height: 18vh;
+  overflow-y: auto;
+}
+
+.album-tracks .result-item {
+  padding: 6px 8px;
+}
+
+.album-tracks .result-title { font-size: 13px; }
+.album-tracks .result-subtitle { font-size: 12px; }
+
+.result-empty {
+  padding: 12px;
+  color: var(--cream-dim);
+  font-size: 14px;
+}
+
+.result-error {
+  padding: 12px;
+  color: #ff8080;
+  background: rgba(224, 66, 66, 0.12);
+  border: 1px solid rgba(224, 66, 66, 0.5);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.device-row {
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.device-row .result-list {
+  position: absolute;
+  z-index: 5;
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--brass-dark);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.result-item.device-active .result-title { color: var(--dial-glow); }
+
+.result-item.album-active {
+  border: 2px solid var(--dial-glow);
+}
+
+.search-columns {
+  display: flex;
+  gap: 12px;
+}
+
+.search-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.column-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  flex-shrink: 0;
+}
+
+.subtabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.subtabs--right {
+  justify-content: flex-end;
+}
+
+.subtab {
+  padding: 6px 12px;
+  border: 1px solid var(--brass-dark);
+  background: transparent;
+  color: var(--cream-dim);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.subtab.active {
+  background: var(--panel-raised);
+  color: var(--dial-glow);
+  border-color: var(--dial-glow);
+}
+
+.search-column .result-list {
+  max-height: 26vh;
+}
+
+.secondary-btn.small {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  align-self: center;
+}
+
+.main-layout {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+.main-column {
+  flex: 2;
+  min-width: 0;
+}
+
+.current-album-panel {
+  flex: 1;
+  min-width: 220px;
+  border-left: 1px solid var(--brass-dark);
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.current-album-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.current-album-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(93, 217, 115, 0.3);
+}
+
+.current-album-text { min-width: 0; }
+
+#current-album-tracks {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+
+.result-item.track-active .result-title {
+  color: var(--dial-glow);
+  font-weight: 700;
+}
+
+.add-to-playlist-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dark);
+  background: var(--panel);
+  color: var(--cream-dim);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-to-playlist-btn:hover {
+  color: var(--dial-glow);
+  border-color: var(--dial-glow);
+}
+
+.add-to-playlist-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  width: 220px;
+  max-height: 220px;
+  margin-top: 4px;
+  border: 1px solid var(--brass-dark);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.playback-modes-inline {
+  display: flex;
+  gap: 10px;
+  margin-left: 6px;
+}
+
+.playback-modes-inline[hidden] {
+  display: none;
+}
+
+.mode-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--brass-dark);
+  background: var(--panel);
+  color: var(--cream-dim);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mode-btn.active {
+  color: var(--on-glow);
+  background: var(--dial-glow);
+  border-color: var(--dial-glow);
+}
+
+@media (max-width: 760px) {
+  .main-layout { flex-direction: column; }
+  .radio-chassis {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  body { align-items: flex-start; }
+  .current-album-panel {
+    border-left: none;
+    border-top: 1px solid var(--brass-dark);
+    padding-left: 0;
+    padding-top: 16px;
+    width: 100%;
+  }
+  #current-album-tracks {
+    flex: none;
+    max-height: 28vh;
+  }
+}
+
+@media (max-width: 420px) {
+  .radio-chassis { padding: 14px; }
+  .now-title { font-size: 18px; }
+}

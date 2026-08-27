@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.spotify_cache
+.spotify_catalog_cache.json
+.spotify_artist_id_cache.json
+.librespot_cache/
+sample_usb/*
+!sample_usb/.gitkeep

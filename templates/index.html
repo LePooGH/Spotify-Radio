@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Spotty Radio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+</head>
+<body>
+  <div class="radio-chassis">
+
+    {% if not spotify_authenticated %}
+    <a href="/login" class="auth-banner">Mit Spotify verbinden, um loszulegen &rarr;</a>
+    {% endif %}
+
+    <div class="main-layout">
+      <div class="main-column">
+
+        <nav class="source-tabs">
+          <button class="tab active" data-source="spotify">Spotify</button>
+          <button class="tab" data-source="webradio">Web-Radio</button>
+          <button class="tab" data-source="usb">USB</button>
+        </nav>
+
+        <section class="dial-display">
+          <img id="now-cover" class="now-cover" src="" alt="" hidden>
+          <div class="now-info">
+            <div id="now-title" class="now-title">Kein Titel aktiv</div>
+            <div id="now-subtitle" class="now-subtitle">&nbsp;</div>
+          </div>
+        </section>
+
+        <section class="transport">
+          <button id="btn-prev" class="transport-btn" title="Zurück">⏮</button>
+          <button id="btn-playpause" class="transport-btn transport-btn--main" title="Play/Pause">▶</button>
+          <button id="btn-next" class="transport-btn" title="Weiter">⏭</button>
+          <span id="playback-modes" class="playback-modes-inline" hidden>
+            <button type="button" id="btn-shuffle" class="mode-btn" title="Zufällige Wiedergabe">🔀</button>
+            <button type="button" id="btn-repeat" class="mode-btn" title="Wiederholen">🔁</button>
+          </span>
+        </section>
+
+        <section class="volume-row">
+          <span class="volume-icon">🔉</span>
+          <input id="volume-slider" type="range" min="0" max="100" value="50">
+          <span class="volume-icon">🔊</span>
+        </section>
+
+        <section id="panel-spotify" class="source-panel active">
+          <div class="device-row">
+            <button id="device-toggle" class="secondary-btn">🔊 Ausgabegerät wählen</button>
+            <ul id="device-list" class="result-list" hidden></ul>
+          </div>
+          <nav class="subtabs subtabs--right">
+            <button type="button" class="subtab active" data-view="online" title="Vorab-Suche in einer externen Datenbank, spart Spotify-Anfragen bei umfangreichen Diskografien (z.B. Hörspielserien)">Hörspiele</button>
+            <button type="button" class="subtab" data-view="playlists">Playlists</button>
+            <button type="button" class="subtab" data-view="albums">Spotify</button>
+          </nav>
+          <form id="spotify-search-form" class="search-form">
+            <input id="spotify-search-input" type="text" placeholder="Song, Album oder Interpret suchen…" autocomplete="off">
+            <button type="submit">Suchen</button>
+          </form>
+          <div class="search-columns">
+            <div class="search-column">
+              <h3 class="column-title">Titel</h3>
+              <ul id="spotify-track-results" class="result-list"></ul>
+            </div>
+            <div class="search-column">
+              <h3 id="album-column-title" class="column-title">Hörspiele</h3>
+              <ul id="spotify-album-results" class="result-list" hidden></ul>
+              <ul id="spotify-playlists" class="result-list" hidden></ul>
+              <ul id="spotify-online-results" class="result-list"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-webradio" class="source-panel">
+          <form id="radio-search-form" class="search-form">
+            <input id="radio-search-input" type="text" placeholder="Sender suchen, z.B. dlf…" autocomplete="off">
+            <button type="submit">Suchen</button>
+          </form>
+          <ul id="radio-results" class="result-list"></ul>
+        </section>
+
+        <section id="panel-usb" class="source-panel">
+          <button id="usb-refresh" class="secondary-btn">USB-Sticks suchen</button>
+          <button id="usb-eject" class="secondary-btn" hidden>⏏ Stick auswerfen</button>
+          <ul id="usb-devices" class="result-list" hidden></ul>
+          <ul id="usb-results" class="result-list"></ul>
+        </section>
+
+      </div>
+
+      <aside class="current-album-panel">
+        <h3 id="current-album-heading" class="column-title">Aktuelles Album</h3>
+        <div class="current-album-header">
+          <img id="current-album-cover" class="current-album-cover" src="" alt="" hidden>
+          <div class="current-album-text">
+            <div id="current-album-name" class="result-title">Kein Album aktiv</div>
+            <div id="current-album-artist" class="result-subtitle">&nbsp;</div>
+          </div>
+        </div>
+        <ul id="current-album-tracks" class="result-list"></ul>
+      </aside>
+
+    </div>
+  </div>
+
+  <script src="{{ asset_url('app.js') }}"></script>
+</body>
+</html>

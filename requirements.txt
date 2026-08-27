@@ -1,0 +1,9 @@
+Flask>=3.0
+spotipy>=2.23
+requests>=2.31
+python-dotenv>=1.0
+mutagen>=1.47
+
+# Auf dem Raspberry Pi zusaetzlich (nicht auf dem Dev-Laptop noetig):
+# gpiozero>=2.0
+# lgpio
