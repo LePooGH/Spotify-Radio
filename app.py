@@ -81,6 +81,7 @@ if config.SPOTIFY_CONNECT_ENABLED:
         device_name=config.SPOTIFY_DEVICE_NAME,
         backend=config.SPOTIFY_CONNECT_BACKEND,
         binary_name=config.SPOTIFY_CONNECT_BINARY,
+        audio_device=config.SPOTIFY_CONNECT_DEVICE or None,
     )
     spotify_connect_daemon.start()
     atexit.register(spotify_connect_daemon.stop)

@@ -30,12 +30,19 @@ import time
 
 class SpotifyConnectDaemon:
     def __init__(self, device_name="Spotty Radio", backend="pulseaudio",
-                 cache_dir=".librespot_cache", initial_volume=70, binary_name="librespot"):
+                 cache_dir=".librespot_cache", initial_volume=70, binary_name="librespot",
+                 audio_device=None):
         self.device_name = device_name
         self.backend = backend
         self.cache_dir = cache_dir
         self.initial_volume = initial_volume
         self.binary_name = binary_name
+        # Konkretes ALSA-Geraet (z.B. "plughw:2,0") statt "default" - auf
+        # manchen Systemen (z.B. mit PipeWire, aber ohne aktive grafische
+        # Sitzung) findet librespot "default" nicht zuverlaessig, obwohl
+        # das Geraet selbst einwandfrei funktioniert (siehe Chat-Verlauf).
+        # None/leer = librespot nutzt weiterhin sein eigenes "default".
+        self.audio_device = audio_device
         self._process = None
         self._unavailable = False  # librespot fehlt - nicht bei jedem start() erneut versuchen/loggen
 
@@ -57,16 +64,19 @@ class SpotifyConnectDaemon:
             return  # laeuft schon
 
         os.makedirs(self.cache_dir, exist_ok=True)
+        args = [
+            self.binary_name,
+            "--name", self.device_name,
+            "--backend", self.backend,
+            "--cache", self.cache_dir,
+            "--initial-volume", str(self.initial_volume),
+            "--bitrate", "320",
+        ]
+        if self.audio_device:
+            args += ["--device", self.audio_device]
         try:
             self._process = subprocess.Popen(
-                [
-                    self.binary_name,
-                    "--name", self.device_name,
-                    "--backend", self.backend,
-                    "--cache", self.cache_dir,
-                    "--initial-volume", str(self.initial_volume),
-                    "--bitrate", "320",
-                ],
+                args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,

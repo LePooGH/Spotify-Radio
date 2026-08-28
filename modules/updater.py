@@ -26,9 +26,17 @@ class Updater:
         self.branch = branch
 
     def _run_git(self, *args, timeout=15):
+        # GIT_TERMINAL_PROMPT=0 verhindert, dass git bei fehlender/
+        # fehlgeschlagener Authentifizierung (z.B. bei privaten
+        # Repositories ohne eingerichtete Anmeldedaten) endlos auf eine
+        # interaktive Eingabe wartet, die als Hintergrundprozess der App
+        # nie kommen kann - stattdessen schlaegt der Befehl sofort mit
+        # einer klaren Fehlermeldung fehl (siehe Chat-Verlauf: das hat
+        # sonst den automatischen Update-Check "aufgehaengt").
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
         return subprocess.run(
             ["git", "-C", self.repo_path, *args],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, text=True, timeout=timeout, env=env,
         )
 
     def check_for_update(self):
