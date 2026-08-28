@@ -41,6 +41,11 @@ SPOTIFY_CONNECT_ENABLED = os.getenv("SPOTIFY_CONNECT_ENABLED", "true").lower() =
 # PipeWire, das PulseAudio-kompatibel ist). Auf dem Pi mit HiFiBerry Amp2
 # spaeter eher "alsa" mit passendem --device.
 SPOTIFY_CONNECT_BACKEND = os.getenv("SPOTIFY_CONNECT_BACKEND", "rodio")
+# Konkretes ALSA-Geraet fuer librespot (z.B. "plughw:2,0" fuer den
+# Kopfhoerer-Ausgang) - manche Systeme (z.B. mit PipeWire ohne aktive
+# grafische Sitzung) finden "default" nicht zuverlaessig. Leer lassen, um
+# librespots eigenes "default" zu nutzen.
+SPOTIFY_CONNECT_DEVICE = os.getenv("SPOTIFY_CONNECT_DEVICE", "")
 # Name/Pfad des librespot-Programms - je nach Installationsweg (cargo vs.
 # Snap) kann der tatsächliche Befehlsname abweichen (siehe README).
 SPOTIFY_CONNECT_BINARY = os.getenv("SPOTIFY_CONNECT_BINARY", "librespot")
