@@ -301,6 +301,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .result-list {
+  touch-action: pan-y;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -623,6 +624,10 @@ input[type="range"]::-moz-range-thumb {
   display: none;
 }
 
+#btn-shuffle, #btn-repeat {
+  display: none;
+}
+
 .mode-btn {
   width: 40px;
   height: 40px;
@@ -667,4 +672,12 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 420px) {
   .radio-chassis { padding: 14px; }
   .now-title { font-size: 18px; }
+}
+
+.result-list::-webkit-scrollbar {
+  width: 24px;
+}
+.result-list::-webkit-scrollbar-thumb {
+  background: var(--brass-dark);
+  border-radius: 12px;
 }

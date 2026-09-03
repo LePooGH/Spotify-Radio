@@ -647,9 +647,22 @@ class SpotifyModule:
         if not self.is_authenticated():
             return {"active": False}
         current = self.sp.current_playback()
-        if not current or not current.get("item"):
+        if not current:
             return {"active": False}
-        item = current["item"]
+        item = current.get("item")
+        if not item:
+            return {
+                "active": True,
+                "is_playing": current.get("is_playing", False),
+                "name": "Unbekannter Titel",
+                "artist": "",
+                "uri": None,
+                "album_cover": None,
+                "volume_percent": (current.get("device") or {}).get("volume_percent"),
+                "device_name": (current.get("device") or {}).get("name"),
+                "shuffle_state": current.get("shuffle_state", False),
+                "repeat_state": current.get("repeat_state", "off"),
+            }
         status = {
             "active": True,
             "is_playing": current.get("is_playing", False),

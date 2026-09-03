@@ -174,6 +174,7 @@ class WebRadioModule:
 
     def play(self, url, name):
         self.player.play(url, title=name)
+        self.player.set_volume(20)
 
     def pause(self):
         self.player.pause()

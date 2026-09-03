@@ -36,8 +36,8 @@ class InputController:
         self._encoder = RotaryEncoder(dt_pin, clk_pin, max_steps=0)
         self._button = Button(sw_pin)
 
-        self._encoder.when_rotated_clockwise = lambda: self._handle_rotation(1)
-        self._encoder.when_rotated_counter_clockwise = lambda: self._handle_rotation(-1)
+        self._encoder.when_rotated_clockwise = lambda: self._handle_rotation(-1)
+        self._encoder.when_rotated_counter_clockwise = lambda: self._handle_rotation(1)
         self._button.when_pressed = self._handle_button
 
     def _handle_rotation(self, direction):

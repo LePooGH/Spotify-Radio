@@ -142,6 +142,8 @@ function setSubtitle(text, scrolling) {
   }
 }
 
+let lastVolumeInteraction = 0;
+
 async function refreshStatus() {
   try {
     const res = await fetch("/api/status");
@@ -168,7 +170,7 @@ async function refreshStatus() {
         els.cover.hidden = true;
       }
       els.playPause.textContent = data.is_playing ? "⏸" : "▶";
-      if (typeof data.volume_percent === "number") {
+      if (typeof data.volume_percent === "number" && Date.now() - lastVolumeInteraction > 3000) {
         els.volume.value = data.volume_percent;
       }
     }
@@ -279,6 +281,9 @@ els.playPause.addEventListener("click", async () => {
 
 els.next.addEventListener("click", () => fetch("/api/next", { method: "POST" }).then(refreshStatus));
 els.prev.addEventListener("click", () => fetch("/api/previous", { method: "POST" }).then(refreshStatus));
+
+
+els.volume.addEventListener("input", () => { lastVolumeInteraction = Date.now(); });
 
 els.volume.addEventListener("change", () => {
   fetch("/api/volume", {
@@ -526,6 +531,7 @@ function renderPlaylistsList(playlists) {
       e.stopPropagation();
       browsePlaylist(pl);
     });
+    li.addEventListener("click", () => playPlaylist(pl));
     els.playlistsList.appendChild(li);
   });
 }
@@ -786,6 +792,11 @@ function renderAlbumResults(items, append) {
       toggleAlbumTracks(li, album, e.currentTarget);
     });
 
+    li.addEventListener("click", () => {
+      switchToAlbumsView();
+      markNowPlayingActive({ albumUri: album.uri });
+      playUri(album.uri);
+    });
     els.albumResults.appendChild(li);
   });
 }
@@ -1074,6 +1085,7 @@ els.radioForm.addEventListener("submit", async (e) => {
         toggleRadioVariants(li, station);
       });
     }
+    li.addEventListener("click", () => playRadioStation(station.url, station.name));
     els.radioResults.appendChild(li);
   });
 });

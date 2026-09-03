@@ -29,6 +29,7 @@ class MPVPlayer:
                 "mpv",
                 "--no-video",
                 "--idle=yes",
+                "--ao=alsa", "--audio-device=alsa",
                 f"--input-ipc-server={self.socket_path}",
             ],
             stdout=subprocess.DEVNULL,

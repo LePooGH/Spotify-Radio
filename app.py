@@ -82,6 +82,7 @@ if config.SPOTIFY_CONNECT_ENABLED:
         backend=config.SPOTIFY_CONNECT_BACKEND,
         binary_name=config.SPOTIFY_CONNECT_BINARY,
         audio_device=config.SPOTIFY_CONNECT_DEVICE or None,
+        initial_volume=20,
     )
     spotify_connect_daemon.start()
     atexit.register(spotify_connect_daemon.stop)
@@ -100,7 +101,9 @@ def _current_module():
     return SOURCES[active_source["name"]]
 
 
+_volume_cache = {"level": 50.0}
 def _set_volume(level):
+    _volume_cache["level"] = level
     module = _current_module()
     module.set_volume(level) if hasattr(module, "set_volume") else shared_player.set_volume(level)
 
@@ -121,13 +124,29 @@ def _stop_current_source():
 
 # --- Drehencoder-Callbacks (nur wirksam wenn PLATFORM=pi) --------------------
 
+_volume_debounce_timer = {"timer": None}
+
+
+def _debounced_set_volume(level):
+    if _volume_debounce_timer["timer"] is not None:
+        _volume_debounce_timer["timer"].cancel()
+
+    def _apply():
+        _set_volume(level)
+
+    _volume_debounce_timer["timer"] = threading.Timer(0.15, _apply)
+    _volume_debounce_timer["timer"].start()
+
+
 def _handle_encoder_volume(direction):
-    step = 5 * direction
+    step = 2.5 * direction
     try:
-        current = _current_module().get_status().get("volume_percent") or 50
+        current = _volume_cache["level"]
     except Exception:
         current = 50
-    _set_volume(max(0, min(100, current + step)))
+    new_level = int(max(0, min(100, current + step)))
+    _volume_cache["level"] = new_level
+    _debounced_set_volume(new_level)
 
 
 def _handle_encoder_click():

@@ -1,25 +1,24 @@
 """
-GPIO-Aus-Knopf: faehrt den Pi sauber herunter, statt dass man einfach den
-Stecker zieht - schuetzt die SD-Karte vor Beschaedigung durch abrupten
-Stromverlust (siehe Chat-Verlauf).
+GPIO-Ein-/Ausschalter: faehrt den Pi sauber herunter, statt dass man
+einfach den Stecker zieht - schuetzt die SD-Karte vor Beschaedigung durch
+abrupten Stromverlust (siehe Chat-Verlauf).
 
 Dev-Modus (Ubuntu-Laptop): Es ist keine Hardware vorhanden - diese Klasse
-tut dann nichts, ausser eine Meldung auszugeben (gleiches Prinzip wie
-InputController fuer den Drehencoder).
+tut dann nichts, ausser eine Meldung auszugeben.
 
-Pi-Modus: Ueberwacht einen GPIO-Pin per gpiozero. Ein LANGER Tastendruck
-(mehrere Sekunden gehalten, nicht nur kurz beruehrt) loest das
-Herunterfahren aus - eine versehentliche kurze Beruehrung reicht bewusst
-NICHT aus, damit man den Pi nicht aus Versehen mitten im Hoeren
-herunterfaehrt.
+Pi-Modus: Ueberwacht einen GPIO-Pin per gpiozero. Steht der Schalter auf
+"aus" (Stromkreis offen, Pin liest HIGH), startet ein Timer - bleibt er
+laenger als hold_seconds in dieser Stellung, wird sauber heruntergefahren.
+Wird rechtzeitig zurueck auf "ein" gelegt, wird der Timer abgebrochen -
+ein kurzes versehentliches Umlegen loest also NICHT sofort ein
+Herunterfahren aus.
 
 WICHTIGE EINMALIGE EINRICHTUNG AUF DEM PI (siehe auch README): Damit
-`sudo shutdown` ohne Passwort-Abfrage funktioniert (noetig, da dieses
-Skript nicht interaktiv laeuft), muss einmalig eine sudoers-Regel
-eingerichtet werden - siehe README fuer die genauen Befehle. Ohne das
-schlaegt das Herunterfahren fehl (Passwort-Prompt haengt im Hintergrund).
+`sudo shutdown` ohne Passwort-Abfrage funktioniert, muss einmalig eine
+sudoers-Regel eingerichtet werden - siehe README.
 """
 import subprocess
+import threading
 
 
 class ShutdownButton:
@@ -29,17 +28,18 @@ class ShutdownButton:
         self.hold_seconds = hold_seconds
         self.enabled = enabled
         self._button = None
+        self._timer = None
 
         if platform != "pi":
             print(
-                "[ShutdownButton] Dev-Modus: kein Aus-Knopf angeschlossen - "
+                "[ShutdownButton] Dev-Modus: kein Schalter angeschlossen - "
                 "zum Beenden reicht Strg+C im Terminal."
             )
             return
         if not enabled:
             print(
                 "[ShutdownButton] Deaktiviert (SHUTDOWN_BUTTON_ENABLED=false) "
-                "- kein Knopf angeschlossen? Verhindert falsche Ausloeser "
+                "- kein Schalter angeschlossen? Verhindert falsche Ausloeser "
                 "durch einen frei schwebenden, nicht verbundenen GPIO-Pin."
             )
             return
@@ -48,16 +48,26 @@ class ShutdownButton:
     def _init_gpio(self):
         from gpiozero import Button
 
-        self._button = Button(self.pin, hold_time=self.hold_seconds)
-        self._button.when_held = self._handle_shutdown
+        self._button = Button(self.pin)
+        self._button.when_released = self._start_shutdown_timer
+        self._button.when_pressed = self._cancel_shutdown_timer
         print(
-            f"[ShutdownButton] Aus-Knopf an GPIO{self.pin} aktiv - "
-            f"{self.hold_seconds} Sekunden gedrueckt halten zum sauberen "
-            f"Herunterfahren."
+            f"[ShutdownButton] Ein-/Ausschalter an GPIO{self.pin} aktiv - "
+            f"Schalter {self.hold_seconds} Sekunden auf 'aus' lassen zum "
+            f"sauberen Herunterfahren."
         )
 
+    def _start_shutdown_timer(self):
+        self._timer = threading.Timer(self.hold_seconds, self._handle_shutdown)
+        self._timer.start()
+
+    def _cancel_shutdown_timer(self):
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+
     def _handle_shutdown(self):
-        print("[ShutdownButton] Aus-Knopf gehalten - fahre Pi sauber herunter...")
+        print("[ShutdownButton] Schalter auf 'aus' - fahre Pi sauber herunter...")
         try:
             subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
         except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
