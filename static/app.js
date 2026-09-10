@@ -390,7 +390,7 @@ async function updateCurrentAlbumPanel(data) {
           <div class="result-title">${track.track_number ? track.track_number + ". " : ""}${track.name}</div>
           <div class="result-subtitle">${track.artist}</div>
         </div>`;
-      li.addEventListener("click", () => playUri(track.uri));
+      li.addEventListener("click", () => playUri(track.uri, `spotify:album:${state.currentAlbumId}`));
       els.currentAlbumTracks.appendChild(li);
     });
     highlightActiveTrack();
@@ -552,7 +552,7 @@ function renderSpotifyRightPanelTracks(tracks) {
         <div class="result-title">${track.name}</div>
         <div class="result-subtitle">${track.artist}</div>
       </div>`;
-    li.addEventListener("click", () => playUri(track.uri));
+    li.addEventListener("click", () => playUri(track.uri, `spotify:playlist:${state.currentPlaylistId}`));
     li.appendChild(createAddButton(track.uri));
     els.currentAlbumTracks.appendChild(li);
   });
@@ -642,11 +642,11 @@ els.btnRepeat.addEventListener("click", async () => {
 
 // --- Spotify-Suche -----------------------------------------------------------
 
-async function playUri(uri) {
+async function playUri(uri, contextUri = null) {
   await fetch("/api/spotify/play", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uri }),
+    body: JSON.stringify({ uri, context_uri: contextUri }),
   });
   refreshStatus();
 }
@@ -843,7 +843,7 @@ async function toggleAlbumTracks(li, album, toggleBtn) {
           <div class="result-title">${track.track_number ? track.track_number + ". " : ""}${track.name}</div>
           <div class="result-subtitle">${track.artist}</div>
         </div>`;
-      trackLi.addEventListener("click", () => playUri(track.uri));
+      trackLi.addEventListener("click", () => playUri(track.uri, `spotify:album:${albumId}`));
       ul.appendChild(trackLi);
     });
     wrapper.innerHTML = "";

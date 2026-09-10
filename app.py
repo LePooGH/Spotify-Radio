@@ -346,9 +346,11 @@ def spotify_set_device():
 
 @app.route("/api/spotify/play", methods=["POST"])
 def spotify_play():
-    uri = (request.json or {}).get("uri")
+    data = request.json or {}
+    uri = data.get("uri")
+    context_uri = data.get("context_uri")
     active_source["name"] = "spotify"
-    spotify.play_uri(uri)
+    spotify.play_uri(uri, context_uri=context_uri)
     return jsonify({"ok": True})
 
 

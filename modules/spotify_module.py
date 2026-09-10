@@ -579,7 +579,7 @@ class SpotifyModule:
             })
         return results
 
-    def play_uri(self, uri):
+    def play_uri(self, uri, context_uri=None):
         device_id = self._get_device_id()
         if not device_id:
             raise RuntimeError(
@@ -590,7 +590,9 @@ class SpotifyModule:
             # Alben (und andere Kontexte wie Playlists) muessen ueber
             # context_uri gestartet werden, einzelne Titel ueber die
             # uris-Liste.
-            if ":album:" in uri or ":playlist:" in uri:
+            if context_uri:
+                self.sp.start_playback(device_id=device_id, context_uri=context_uri, offset={"uri": uri})
+            elif ":album:" in uri or ":playlist:" in uri:
                 self.sp.start_playback(device_id=device_id, context_uri=uri)
             else:
                 self.sp.start_playback(device_id=device_id, uris=[uri])
