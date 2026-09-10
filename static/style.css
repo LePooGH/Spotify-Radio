@@ -681,3 +681,129 @@ input[type="range"]::-moz-range-thumb {
   background: var(--brass-dark);
   border-radius: 12px;
 }
+
+/* --- Seiten-Buttons (Aus-/Aufwach-Zeit, Einschlaf-Timer) ------------------ */
+
+.side-controls {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 50;
+}
+
+.side-btn {
+  width: 69px;
+  height: 69px;
+  border-radius: 21px;
+  border: 1px solid #cfc9bc;
+  background: linear-gradient(160deg, #f4f1ea, #d6d1c4);
+  color: #3a352e;
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0.6;
+}
+
+.side-btn:active {
+  transform: scale(0.94);
+}
+
+.schedule-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.schedule-modal-overlay:not([hidden]) {
+  display: flex;
+}
+
+.schedule-modal {
+  background: var(--panel);
+  border: 1px solid var(--brass-dark);
+  border-radius: var(--radius);
+  padding: 24px;
+  min-width: 280px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.schedule-modal h3 {
+  margin: 0 0 16px 0;
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.schedule-modal input[type="time"],
+.schedule-modal select {
+  width: 100%;
+  padding: 12px;
+  font-size: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dark);
+  background: #0d0b09;
+  color: var(--cream);
+  box-sizing: border-box;
+}
+
+.schedule-timer-status {
+  color: var(--dial-glow);
+  font-family: var(--font-display);
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.schedule-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  justify-content: flex-end;
+}
+
+.schedule-modal-btn {
+  padding: 11px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+
+.schedule-modal-btn--primary {
+  background: var(--dial-glow);
+  color: #0d0b09;
+  border: none;
+  font-weight: 600;
+}
+
+.schedule-modal-btn--secondary {
+  background: transparent;
+  color: var(--cream-dim);
+  border: 1px solid var(--brass-dark);
+}
+
+.schedule-time-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.schedule-time-picker select {
+  width: auto;
+  flex: 1;
+}
+
+.schedule-time-sep {
+  color: var(--cream);
+  font-size: 20px;
+  font-family: var(--font-display);
+}

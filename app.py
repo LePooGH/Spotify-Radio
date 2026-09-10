@@ -22,6 +22,7 @@ from modules.webradio_module import WebRadioModule
 from modules.usb_module import USBModule
 from modules.input_controller import InputController
 from modules.shutdown_button import ShutdownButton
+from modules.scheduler import Scheduler
 
 app = Flask(__name__)
 
@@ -172,6 +173,28 @@ shutdown_button = ShutdownButton(
     pin=config.SHUTDOWN_BUTTON_PIN,
     hold_seconds=config.SHUTDOWN_BUTTON_HOLD_SECONDS,
     enabled=config.SHUTDOWN_BUTTON_ENABLED,
+)
+
+
+def _handle_scheduled_off():
+    _stop_current_source()
+
+
+def _handle_scheduled_wake():
+    last = spotify.get_last_played()
+    if last and last.get("uri"):
+        active_source["name"] = "spotify"
+        try:
+            spotify.play_uri(last["uri"])
+        except Exception:
+            pass
+
+
+scheduler = Scheduler(
+    config_path=os.path.join(os.path.dirname(__file__), ".schedule.json"),
+    on_off_action=_handle_scheduled_off,
+    on_wake_action=_handle_scheduled_wake,
+    platform=config.PLATFORM,
 )
 
 
@@ -328,6 +351,43 @@ def spotify_last_played():
     - fuers Anzeigen von 'Aktuelles Album' schon vor der ersten echten
     Wiedergabe nach einem App-Start."""
     return jsonify(spotify.get_last_played() or {})
+
+
+@app.route("/api/schedule", methods=["GET"])
+def get_schedule():
+    return jsonify(scheduler.get_schedule())
+
+
+@app.route("/api/schedule", methods=["POST"])
+def set_schedule():
+    data = request.json or {}
+    scheduler.set_schedule(
+        off_time=data.get("off_time"),
+        on_time=data.get("on_time"),
+        clear_off=data.get("clear_off", False),
+        clear_on=data.get("clear_on", False),
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/api/sleep_timer", methods=["GET"])
+def get_sleep_timer():
+    return jsonify({"remaining_seconds": scheduler.get_sleep_timer_remaining()})
+
+
+@app.route("/api/sleep_timer", methods=["POST"])
+def start_sleep_timer():
+    minutes = (request.json or {}).get("minutes")
+    if not minutes or minutes <= 0:
+        return jsonify({"error": "minutes fehlt oder ungueltig"}), 400
+    scheduler.start_sleep_timer(int(minutes))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/sleep_timer", methods=["DELETE"])
+def cancel_sleep_timer():
+    scheduler.cancel_sleep_timer()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/spotify/devices")

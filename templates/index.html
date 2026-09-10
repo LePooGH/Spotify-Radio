@@ -9,6 +9,13 @@
   <link rel="stylesheet" href="{{ asset_url('style.css') }}">
 </head>
 <body>
+
+  <div class="side-controls">
+    <button id="btn-sleep-time" class="side-btn" title="Aus-Zeit einstellen">☾</button>
+    <button id="btn-wake-time" class="side-btn" title="Aufwach-Zeit einstellen">⏰</button>
+    <button id="btn-sleep-timer" class="side-btn" title="Einschlaf-Timer">⏱️</button>
+  </div>
+
   <div class="radio-chassis">
 
     {% if not spotify_authenticated %}
@@ -107,6 +114,17 @@
         <ul id="current-album-tracks" class="result-list"></ul>
       </aside>
 
+    </div>
+  </div>
+
+  <div id="schedule-modal-overlay" class="schedule-modal-overlay" hidden>
+    <div class="schedule-modal">
+      <h3 id="schedule-modal-title"></h3>
+      <div id="schedule-modal-body"></div>
+      <div class="schedule-modal-actions">
+        <button type="button" id="schedule-modal-cancel" class="schedule-modal-btn schedule-modal-btn--secondary"></button>
+        <button type="button" id="schedule-modal-save" class="schedule-modal-btn schedule-modal-btn--primary">Speichern</button>
+      </div>
     </div>
   </div>
 

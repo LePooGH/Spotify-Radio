@@ -9,3 +9,4 @@ __pycache__/
 .librespot_cache/
 sample_usb/*
 !sample_usb/.gitkeep
+.schedule.json

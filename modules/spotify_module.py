@@ -665,6 +665,7 @@ class SpotifyModule:
                 "shuffle_state": current.get("shuffle_state", False),
                 "repeat_state": current.get("repeat_state", "off"),
             }
+        context = current.get("context") or {}
         status = {
             "active": True,
             "is_playing": current.get("is_playing", False),
@@ -680,6 +681,8 @@ class SpotifyModule:
             "device_name": (current.get("device") or {}).get("name"),
             "shuffle_state": current.get("shuffle_state", False),
             "repeat_state": current.get("repeat_state", "off"),
+            "context_type": context.get("type"),
+            "context_uri": context.get("uri"),
         }
         # Zuletzt gespielten Titel auf der Festplatte merken, damit er beim
         # naechsten App-Start wieder angezeigt/fortgesetzt werden kann (siehe

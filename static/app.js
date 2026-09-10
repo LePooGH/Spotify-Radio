@@ -332,6 +332,7 @@ async function updateCurrentAlbumPanel(data) {
   }
   if (data.source !== "spotify" || !data.active || !data.album_id) {
     state.currentAlbumId = null;
+    state.currentAutoContextKey = null;
     state.currentTrackUri = null;
     if (data.source === "spotify" && !data.active) {
       // Spotify ist die aktive Quelle, aber gerade laeuft nichts (z.B.
@@ -355,13 +356,60 @@ async function updateCurrentAlbumPanel(data) {
   state.lastPlayedShown = false; // etwas laeuft jetzt echt - Flag fuers naechste Leerlauf-Phase zuruecksetzen
   state.currentTrackUri = data.uri || null;
 
-  if (data.album_id === state.currentAlbumId) {
+  // Laeuft der aktuelle Titel im Rahmen einer Playlist (Spotify liefert das
+  // im "context"-Feld mit), zeigen wir die Playlist statt des Albums an -
+  // das ist es, was nach dem Titel tatsaechlich automatisch weiterspielt
+  // (siehe Chat-Verlauf: vorher wurde nach einem Neustart immer das Album
+  // gezeigt, obwohl im Hintergrund die Playlist weiterlief).
+  if (data.context_type === "playlist" && data.context_uri) {
+    const playlistId = data.context_uri.split(":").pop();
+    const contextKey = `playlist:${playlistId}`;
+    if (contextKey === state.currentAutoContextKey) {
+      highlightActiveTrack();
+      return;
+    }
+    state.currentAutoContextKey = contextKey;
+    state.currentAlbumId = null;
+    state.currentPlaylistId = playlistId;
+
+    const playlists = await ensurePlaylistsLoaded();
+    const playlist = playlists.find((pl) => pl.id === playlistId);
+    els.currentAlbumName.textContent = playlist ? playlist.name : "Playlist";
+    els.currentAlbumArtist.textContent = playlist
+      ? `Playlist · ${playlist.track_count} Titel`
+      : "\u00A0";
+    if (playlist && playlist.cover) {
+      els.currentAlbumCover.src = playlist.cover;
+      els.currentAlbumCover.hidden = false;
+    } else {
+      els.currentAlbumCover.hidden = true;
+    }
+
+    els.currentAlbumTracks.innerHTML = '<li class="result-empty">Lade Titel…</li>';
+    try {
+      const res = await fetch(`/api/spotify/playlist/${playlistId}/tracks`);
+      const tracks = await res.json();
+      if (tracks.error) {
+        els.currentAlbumTracks.innerHTML = `<li class="result-empty">Fehler: ${tracks.error}</li>`;
+        return;
+      }
+      renderSpotifyRightPanelTracks(tracks);
+      highlightActiveTrack();
+    } catch (err) {
+      els.currentAlbumTracks.innerHTML = '<li class="result-empty">Titel konnten nicht geladen werden.</li>';
+    }
+    return;
+  }
+
+  const albumContextKey = `album:${data.album_id}`;
+  if (albumContextKey === state.currentAutoContextKey) {
     // Gleiches Album wie beim letzten Poll - nur die Hervorhebung des
     // laufenden Titels aktualisieren, nicht die Titelliste neu laden.
     highlightActiveTrack();
     return;
   }
 
+  state.currentAutoContextKey = albumContextKey;
   state.currentAlbumId = data.album_id;
   els.currentAlbumName.textContent = data.album_name || data.name;
   els.currentAlbumArtist.textContent = data.artist || "\u00A0";
@@ -1292,3 +1340,143 @@ async function loadUsbList() {
 }
 
 els.usbRefresh.addEventListener("click", loadUsbList);
+
+// --- Aus-/Aufwach-Zeit & Einschlaf-Timer ------------------------------------
+
+const scheduleState = { offTime: null, onTime: null };
+
+async function loadSchedule() {
+  try {
+    const res = await fetch("/api/schedule");
+    const data = await res.json();
+    scheduleState.offTime = data.off_time;
+    scheduleState.onTime = data.on_time;
+  } catch (err) {
+    // Backend evtl. noch nicht bereit - beim naechsten Laden erneut versuchen
+  }
+}
+
+function buildTimeSelectHtml(currentValue) {
+  const parts = (currentValue || "").split(":");
+  const curH = parts[0] || "";
+  const curM = parts[1] || "";
+  let hourOptions = "";
+  for (let h = 0; h < 24; h++) {
+    const hh = String(h).padStart(2, "0");
+    hourOptions += `<option value="${hh}"${hh === curH ? " selected" : ""}>${hh}</option>`;
+  }
+  let minuteOptions = "";
+  for (let m = 0; m < 60; m += 5) {
+    const mm = String(m).padStart(2, "0");
+    minuteOptions += `<option value="${mm}"${mm === curM ? " selected" : ""}>${mm}</option>`;
+  }
+  return `
+    <div class="schedule-time-picker">
+      <select id="schedule-hour-select">${hourOptions}</select>
+      <span class="schedule-time-sep">:</span>
+      <select id="schedule-minute-select">${minuteOptions}</select>
+    </div>`;
+}
+
+function openScheduleModal(mode) {
+  const overlay = document.getElementById("schedule-modal-overlay");
+  const title = document.getElementById("schedule-modal-title");
+  const body = document.getElementById("schedule-modal-body");
+  const saveBtn = document.getElementById("schedule-modal-save");
+  const cancelBtn = document.getElementById("schedule-modal-cancel");
+  overlay.dataset.mode = mode;
+
+  if (mode === "off") {
+    title.textContent = "Aus-Zeit";
+    body.innerHTML = buildTimeSelectHtml(scheduleState.offTime);
+    saveBtn.textContent = "Speichern";
+    saveBtn.hidden = false;
+    cancelBtn.textContent = scheduleState.offTime ? "Deaktivieren" : "Abbrechen";
+  } else if (mode === "wake") {
+    title.textContent = "Aufwach-Zeit";
+    body.innerHTML = buildTimeSelectHtml(scheduleState.onTime);
+    saveBtn.textContent = "Speichern";
+    saveBtn.hidden = false;
+    cancelBtn.textContent = scheduleState.onTime ? "Deaktivieren" : "Abbrechen";
+  } else if (mode === "timer") {
+    title.textContent = "Einschlaf-Timer";
+    body.innerHTML = `
+      <select id="sleep-timer-select">
+        <option value="15">15 Minuten</option>
+        <option value="30">30 Minuten</option>
+        <option value="45">45 Minuten</option>
+        <option value="60">60 Minuten</option>
+        <option value="90">90 Minuten</option>
+        <option value="120">120 Minuten</option>
+      </select>`;
+    saveBtn.textContent = "Timer starten";
+    saveBtn.hidden = false;
+    cancelBtn.textContent = "Abbrechen";
+    fetch("/api/sleep_timer").then((res) => res.json()).then((data) => {
+      if (data.remaining_seconds !== null && data.remaining_seconds !== undefined) {
+        const mins = Math.ceil(data.remaining_seconds / 60);
+        body.innerHTML = `<div class="schedule-timer-status">Timer läuft noch ca. ${mins} Min.</div>` + body.innerHTML;
+        saveBtn.hidden = true;
+        cancelBtn.textContent = "Timer abbrechen";
+      }
+    });
+  }
+  overlay.hidden = false;
+}
+
+function closeScheduleModal() {
+  document.getElementById("schedule-modal-overlay").hidden = true;
+}
+
+document.getElementById("btn-sleep-time").addEventListener("click", () => openScheduleModal("off"));
+document.getElementById("btn-wake-time").addEventListener("click", () => openScheduleModal("wake"));
+document.getElementById("btn-sleep-timer").addEventListener("click", () => openScheduleModal("timer"));
+
+document.getElementById("schedule-modal-cancel").addEventListener("click", async () => {
+  const mode = document.getElementById("schedule-modal-overlay").dataset.mode;
+  if (mode === "off") {
+    await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clear_off: true }),
+    });
+    scheduleState.offTime = null;
+  } else if (mode === "wake") {
+    await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clear_on: true }),
+    });
+    scheduleState.onTime = null;
+  } else if (mode === "timer") {
+    await fetch("/api/sleep_timer", { method: "DELETE" });
+  }
+  closeScheduleModal();
+});
+
+document.getElementById("schedule-modal-save").addEventListener("click", async () => {
+  const mode = document.getElementById("schedule-modal-overlay").dataset.mode;
+  if (mode === "off" || mode === "wake") {
+    const h = document.getElementById("schedule-hour-select").value;
+    const m = document.getElementById("schedule-minute-select").value;
+    const value = `${h}:${m}`;
+    const body = mode === "off" ? { off_time: value } : { on_time: value };
+    await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (mode === "off") scheduleState.offTime = value;
+    else scheduleState.onTime = value;
+  } else if (mode === "timer") {
+    const minutes = document.getElementById("sleep-timer-select").value;
+    await fetch("/api/sleep_timer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ minutes: Number(minutes) }),
+    });
+  }
+  closeScheduleModal();
+});
+
+loadSchedule();
