@@ -16,13 +16,17 @@
     <button id="btn-sleep-timer" class="side-btn" title="Einschlaf-Timer">⏱️</button>
   </div>
 
+  <div class="side-controls side-controls--bottom">
+    <button id="update-button" class="side-btn side-btn--update" title="Update verfügbar - antippen zum Installieren" hidden>⬆</button>
+    <button id="btn-power" class="side-btn" title="Herunterfahren/Neustarten">⏻</button>
+  </div>
+
   <div class="radio-chassis">
 
     {% if not spotify_authenticated %}
     <a href="/login" class="auth-banner">Mit Spotify verbinden, um loszulegen &rarr;</a>
     {% endif %}
 
-    <button id="update-button" class="update-banner" hidden>⬆ Update verfügbar - antippen zum Installieren</button>
 
     <div class="main-layout">
       <div class="main-column">
@@ -128,6 +132,16 @@
     </div>
   </div>
 
-  <script src="{{ asset_url('app.js') }}"></script>
+    <div id="power-modal-overlay" class="schedule-modal-overlay" hidden>
+    <div class="schedule-modal">
+      <h3 id="power-modal-title">Gerät</h3>
+      <div id="power-modal-body"></div>
+      <div class="schedule-modal-actions">
+        <button type="button" id="power-modal-cancel" class="schedule-modal-btn schedule-modal-btn--secondary">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+<script src="{{ asset_url('app.js') }}"></script>
 </body>
 </html>

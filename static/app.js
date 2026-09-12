@@ -248,27 +248,72 @@ async function checkForUpdate() {
 
 updateButton.addEventListener("click", async () => {
   updateButton.disabled = true;
-  updateButton.textContent = "Wird aktualisiert…";
+  updateButton.textContent = "⏳";
+  updateButton.title = "Wird aktualisiert…";
   try {
     const res = await fetch("/api/update/apply", { method: "POST" });
     const data = await res.json();
     if (data.ok) {
-      updateButton.textContent = "Update installiert - Neustart läuft…";
-      // Die App beendet sich serverseitig kurz danach selbst (siehe
-      // app.py) - nach ein paar Sekunden warten und die Seite neu laden,
-      // damit sie mit dem neuen Code wieder erreichbar ist.
+      updateButton.title = "Update installiert - Neustart läuft…";
       setTimeout(() => window.location.reload(), 6000);
     } else {
-      updateButton.textContent = "⬆ Update verfügbar - antippen zum Installieren";
+      updateButton.textContent = "⬆";
+      updateButton.title = "Update verfügbar - antippen zum Installieren";
       updateButton.disabled = false;
       alert(`Update fehlgeschlagen: ${data.error || "unbekannter Fehler"}`);
     }
   } catch (err) {
-    updateButton.textContent = "⬆ Update verfügbar - antippen zum Installieren";
+    updateButton.textContent = "⬆";
+    updateButton.title = "Update verfügbar - antippen zum Installieren";
     updateButton.disabled = false;
     alert("Update fehlgeschlagen (keine Verbindung zum Server).");
   }
 });
+
+// --- Aus-/Neustart-Button ----------------------------------------------------
+
+function openPowerModal() {
+  document.getElementById("power-modal-cancel").hidden = false;
+  showPowerChoice();
+  document.getElementById("power-modal-overlay").hidden = false;
+}
+
+function closePowerModal() {
+  document.getElementById("power-modal-overlay").hidden = true;
+}
+
+function showPowerChoice() {
+  document.getElementById("power-modal-title").textContent = "Gerät";
+  document.getElementById("power-modal-body").innerHTML =
+    '<button type="button" id="power-btn-shutdown" class="power-modal-btn">⏻ Herunterfahren</button>' +
+    '<button type="button" id="power-btn-reboot" class="power-modal-btn">↻ Neustarten</button>';
+  document.getElementById("power-btn-shutdown").addEventListener("click", () => showPowerConfirm("shutdown"));
+  document.getElementById("power-btn-reboot").addEventListener("click", () => showPowerConfirm("reboot"));
+}
+
+function showPowerConfirm(action) {
+  const label = action === "shutdown" ? "herunterfahren" : "neu starten";
+  document.getElementById("power-modal-title").textContent = "Wirklich " + label + "?";
+  document.getElementById("power-modal-body").innerHTML =
+    '<button type="button" id="power-btn-confirm" class="power-modal-btn power-modal-btn--danger">Ja, ' + label + '</button>';
+  document.getElementById("power-btn-confirm").addEventListener("click", () => executePowerAction(action));
+}
+
+async function executePowerAction(action) {
+  document.getElementById("power-modal-title").textContent = action === "shutdown" ? "Fährt herunter…" : "Startet neu…";
+  document.getElementById("power-modal-body").innerHTML = "";
+  document.getElementById("power-modal-cancel").hidden = true;
+  const url = action === "shutdown" ? "/api/system/shutdown" : "/api/system/reboot";
+  try {
+    await fetch(url, { method: "POST" });
+  } catch (err) {
+    // Verbindung bricht ohnehin gleich ab, sobald der Pi tatsaechlich
+    // herunterfaehrt/neu startet - das ist erwartet, kein echter Fehler.
+  }
+}
+
+document.getElementById("btn-power").addEventListener("click", openPowerModal);
+document.getElementById("power-modal-cancel").addEventListener("click", closePowerModal);
 
 checkForUpdate();
 setInterval(checkForUpdate, 5 * 60 * 1000);

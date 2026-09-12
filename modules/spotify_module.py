@@ -98,6 +98,7 @@ class SpotifyModule:
         # ausloesen kann (siehe Chat-Verlauf).
         self._catalog_disk_cache = DiskCache(".spotify_catalog_cache.json")
         self._artist_id_disk_cache = DiskCache(".spotify_artist_id_cache.json")
+        self._search_disk_cache = DiskCache(".spotify_search_cache.json")
         # Cache: die eigene Nutzer-ID - noetig, um zu erkennen, ob eine
         # Playlist wirklich einem selbst gehoert (siehe get_user_playlists).
         self._current_user_id = None
@@ -511,10 +512,18 @@ class SpotifyModule:
         if search_type not in ("track", "album"):
             search_type = "track"
 
-        if search_type == "album":
-            return self._albums_for_query(query, offset)
+        cache_key = f"{search_type}:{offset}:{query.strip().lower()}"
+        cached = self._search_disk_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
-        return self._tracks_for_query(query, offset)
+        if search_type == "album":
+            result = self._albums_for_query(query, offset)
+        else:
+            result = self._tracks_for_query(query, offset)
+
+        self._search_disk_cache.set(cache_key, result)
+        return result
 
     def search_album_by_hint(self, artist, title, limit=10):
         """Gezielte, EINMALIGE Spotify-Albumsuche fuer ein konkretes Ergebnis
@@ -554,10 +563,17 @@ class SpotifyModule:
             return {"tracks": [], "albums": []}
         if self.is_query_blocked(query):
             return {"tracks": [], "albums": [], "blocked": True}
+        cache_key = f"combined:{query.strip().lower()}"
+        cached = self._search_disk_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         artist_id = self._resolve_artist_id(query)
         tracks = self._tracks_for_query(query, offset=0, artist_id=artist_id)
         albums = self._albums_for_query(query, offset=0, artist_id=artist_id)
-        return {"tracks": tracks, "albums": albums}
+        result = {"tracks": tracks, "albums": albums}
+        self._search_disk_cache.set(cache_key, result)
+        return result
 
     def get_album_tracks(self, album_id):
         """Liefert die Titel eines Albums, fuer die eingerueckte Anzeige nach

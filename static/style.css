@@ -807,3 +807,40 @@ input[type="range"]::-moz-range-thumb {
   font-size: 20px;
   font-family: var(--font-display);
 }
+
+/* --- Ecke unten rechts (Update, Aus-/Neustart) ---------------------------- */
+
+.side-controls--bottom {
+  top: auto;
+  bottom: 24px;
+}
+
+.side-btn--update {
+  background: linear-gradient(160deg, #f5d76e, #e0b93a);
+  border-color: #c79a2e;
+  color: #3a2e0a;
+}
+
+.power-modal-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dark);
+  background: var(--panel-raised);
+  color: var(--cream);
+  font-size: 16px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.power-modal-btn:last-child {
+  margin-bottom: 0;
+}
+
+.power-modal-btn--danger {
+  background: #7a2f2f;
+  border-color: #a83e3e;
+  color: #f5e4e4;
+}

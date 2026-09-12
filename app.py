@@ -7,6 +7,7 @@ Raspberry Pi. config.PLATFORM entscheidet, welche Hardware-Module aktiv sind
 """
 import atexit
 import os
+import subprocess
 import threading
 import time
 
@@ -351,6 +352,24 @@ def spotify_last_played():
     - fuers Anzeigen von 'Aktuelles Album' schon vor der ersten echten
     Wiedergabe nach einem App-Start."""
     return jsonify(spotify.get_last_played() or {})
+
+
+@app.route("/api/system/shutdown", methods=["POST"])
+def system_shutdown():
+    try:
+        subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
+        return jsonify({"ok": True})
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/system/reboot", methods=["POST"])
+def system_reboot():
+    try:
+        subprocess.run(["sudo", "shutdown", "-r", "now"], check=True)
+        return jsonify({"ok": True})
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/api/schedule", methods=["GET"])
