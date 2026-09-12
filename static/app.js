@@ -226,7 +226,7 @@ function updateSpotifyActiveTrack(uri) {
   });
 }
 
-setInterval(refreshStatus, 2000);
+setInterval(refreshStatus, 5000);
 refreshStatus();
 
 // --- Selbst-Update ueber Git/GitHub -----------------------------------------
