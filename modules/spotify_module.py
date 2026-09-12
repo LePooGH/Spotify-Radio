@@ -118,7 +118,7 @@ class SpotifyModule:
             cache_path=cache_path,
             open_browser=False,
         )
-        self.sp = spotipy.Spotify(auth_manager=self._auth_manager)
+        self.sp = spotipy.Spotify(auth_manager=self._auth_manager, requests_timeout=5)
 
     def is_authenticated(self):
         return self._auth_manager.get_cached_token() is not None
