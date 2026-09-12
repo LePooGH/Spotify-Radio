@@ -269,7 +269,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .source-panel { display: none; }
-.source-panel.active { display: block; }
+.source-panel.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 
 .search-form {
   display: flex;
@@ -468,6 +473,8 @@ input[type="range"]::-moz-range-thumb {
 .search-columns {
   display: flex;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 .search-column {
@@ -475,6 +482,7 @@ input[type="range"]::-moz-range-thumb {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .column-title {
@@ -516,7 +524,9 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .search-column .result-list {
-  max-height: 26vh;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .secondary-btn.small {
@@ -537,6 +547,9 @@ input[type="range"]::-moz-range-thumb {
 .main-column {
   flex: 2;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .current-album-panel {
