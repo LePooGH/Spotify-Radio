@@ -137,7 +137,7 @@ class SpotifyModule:
         # ausloesen kann (siehe Chat-Verlauf).
         self._catalog_disk_cache = DiskCache(".spotify_catalog_cache.json")
         self._artist_id_disk_cache = DiskCache(".spotify_artist_id_cache.json")
-        self._search_disk_cache = DiskCache(".spotify_search_cache.json")
+        self._search_disk_cache = DiskCache(".spotify_search_cache.json", ttl_seconds=30 * 24 * 3600)
         self._rate_limited_until = 0
         # Cache: die eigene Nutzer-ID - noetig, um zu erkennen, ob eine
         # Playlist wirklich einem selbst gehoert (siehe get_user_playlists).
