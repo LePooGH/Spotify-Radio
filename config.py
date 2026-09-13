@@ -106,3 +106,4 @@ ENCODER_SW_PIN = int(os.getenv("ENCODER_SW_PIN", 22))
 SHUTDOWN_BUTTON_PIN = int(os.getenv("SHUTDOWN_BUTTON_PIN", 26))
 SHUTDOWN_BUTTON_HOLD_SECONDS = float(os.getenv("SHUTDOWN_BUTTON_HOLD_SECONDS", 3))
 SHUTDOWN_BUTTON_ENABLED = os.getenv("SHUTDOWN_BUTTON_ENABLED", "true").lower() == "true"
+ENCODER_ENABLED = os.getenv("ENCODER_ENABLED", "true").lower() == "true"

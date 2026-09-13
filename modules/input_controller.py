@@ -17,18 +17,24 @@ gpiozero/lgpio installiert sein muss.
 
 class InputController:
     def __init__(self, platform, on_volume_change=None, on_button_press=None,
-                 clk_pin=17, dt_pin=27, sw_pin=22):
+                 clk_pin=17, dt_pin=27, sw_pin=22, enabled=True):
         self.platform = platform
         self.on_volume_change = on_volume_change
         self.on_button_press = on_button_press
 
-        if platform == "pi":
-            self._init_gpio(clk_pin, dt_pin, sw_pin)
-        else:
+        if platform != "pi":
             print(
                 "[InputController] Dev-Modus: kein Drehencoder angeschlossen - "
                 "Lautstaerke/Play-Pause laufen ueber das Web-Interface."
             )
+            return
+        if not enabled:
+            print(
+                "[InputController] Deaktiviert (ENCODER_ENABLED=false) - "
+                "Lautstaerke/Play-Pause laufen ueber das Web-Interface."
+            )
+            return
+        self._init_gpio(clk_pin, dt_pin, sw_pin)
 
     def _init_gpio(self, clk_pin, dt_pin, sw_pin):
         from gpiozero import RotaryEncoder, Button

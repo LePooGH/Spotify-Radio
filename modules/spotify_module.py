@@ -5,6 +5,7 @@ Wichtig: Dieses Modul spielt keine Musik selbst ab, sondern steuert per
 Fernbedienung ein Spotify-Connect-Zielgeraet - im Dev-Modus z.B. dein Handy
 mit geoeffneter Spotify-App, spaeter auf dem Pi raspotify/librespot.
 """
+import functools
 import json
 import re
 import time
@@ -13,6 +14,44 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 from modules.disk_cache import DiskCache
+
+
+class SpotifyRateLimited(Exception):
+    """Wird ausgeloest, wenn Spotify uns rate-limitiert (429) hat oder wir
+    noch innerhalb einer zuvor erkannten Sperrzeit stecken. Traegt die
+    verbleibende Sperrzeit in Sekunden."""
+    def __init__(self, retry_after_seconds):
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__(f"Spotify vorruebergehend gesperrt, noch {retry_after_seconds}s")
+
+
+def _spotify_rate_limit_guard(method):
+    """Dekorator fuer alle oeffentlichen Methoden, die self.sp aufrufen:
+    Ist eine Sperrzeit aus einem frueheren 429-Fehler bekannt, wird der
+    eigentliche Spotify-Aufruf gar nicht erst versucht (kappt die
+    Verbindung bis zum Ablauf, siehe Chat-Verlauf - vorher haengte jede
+    einzelne Anfrage trotz 5s-Timeout erneut, was den Server ausbremste).
+    Wird waehrend eines Aufrufs ein neuer 429-Fehler erkannt, wird die
+    Sperrzeit aus dem Retry-After-Header uebernommen."""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        remaining = self._rate_limited_until - time.time()
+        if remaining > 0:
+            raise SpotifyRateLimited(int(remaining) + 1)
+        try:
+            return method(self, *args, **kwargs)
+        except spotipy.SpotifyException as exc:
+            if exc.http_status == 429:
+                retry_after = 60
+                try:
+                    retry_after = int(exc.headers.get("Retry-After", 60))
+                except (AttributeError, TypeError, ValueError):
+                    pass
+                self._rate_limited_until = time.time() + retry_after
+                raise SpotifyRateLimited(retry_after) from exc
+            raise
+    return wrapper
+
 
 SCOPE = (
     "user-modify-playback-state user-read-playback-state "
@@ -99,6 +138,7 @@ class SpotifyModule:
         self._catalog_disk_cache = DiskCache(".spotify_catalog_cache.json")
         self._artist_id_disk_cache = DiskCache(".spotify_artist_id_cache.json")
         self._search_disk_cache = DiskCache(".spotify_search_cache.json")
+        self._rate_limited_until = 0
         # Cache: die eigene Nutzer-ID - noetig, um zu erkennen, ob eine
         # Playlist wirklich einem selbst gehoert (siehe get_user_playlists).
         self._current_user_id = None
@@ -129,6 +169,7 @@ class SpotifyModule:
     def handle_callback(self, code):
         self._auth_manager.get_access_token(code, as_dict=False)
 
+    @_spotify_rate_limit_guard
     def list_devices(self):
         """Liste aller aktuell verfuegbaren Spotify-Connect-Geraete
         (Handy, Computer, spaeter raspotify auf dem Pi, ...)."""
@@ -143,6 +184,7 @@ class SpotifyModule:
             for d in devices
         ]
 
+    @_spotify_rate_limit_guard
     def set_device(self, device_id):
         """Setzt das Ziel-Geraet fest und verschiebt eine laufende Wiedergabe
         dorthin (falls gerade etwas spielt)."""
@@ -500,6 +542,7 @@ class SpotifyModule:
         items.sort(key=self._album_sort_key)
         return self._format_and_filter(items, "album")
 
+    @_spotify_rate_limit_guard
     def search(self, query, search_type="track", offset=0):
         """Sucht Titel ODER Alben (fuer Infinite Scroll pro Spalte, das ueber
         offset weiterblaettert).
@@ -525,6 +568,7 @@ class SpotifyModule:
         self._search_disk_cache.set(cache_key, result)
         return result
 
+    @_spotify_rate_limit_guard
     def search_album_by_hint(self, artist, title, limit=10):
         """Gezielte, EINMALIGE Spotify-Albumsuche fuer ein konkretes Ergebnis
         aus der externen Diskografie-Vorab-Suche (siehe modules/
@@ -551,6 +595,7 @@ class SpotifyModule:
         wuerden."""
         return self._is_excluded([query])
 
+    @_spotify_rate_limit_guard
     def search_combined(self, query):
         """Sucht Titel UND Alben gleichzeitig - fuer die Zwei-Spalten-Ansicht,
         bei der beides parallel angezeigt wird, ohne dass ein Umschalten
@@ -575,6 +620,7 @@ class SpotifyModule:
         self._search_disk_cache.set(cache_key, result)
         return result
 
+    @_spotify_rate_limit_guard
     def get_album_tracks(self, album_id):
         """Liefert die Titel eines Albums, fuer die eingerueckte Anzeige nach
         Klick auf ein Album in der Ergebnisliste bzw. fuer die
@@ -595,6 +641,7 @@ class SpotifyModule:
             })
         return results
 
+    @_spotify_rate_limit_guard
     def play_uri(self, uri, context_uri=None):
         device_id = self._get_device_id()
         if not device_id:
@@ -616,6 +663,7 @@ class SpotifyModule:
             self._clear_device_cache()  # Geraet evtl. nicht mehr gueltig - neu suchen beim naechsten Versuch
             raise
 
+    @_spotify_rate_limit_guard
     def pause(self):
         device_id = self._get_device_id()
         try:
@@ -623,6 +671,7 @@ class SpotifyModule:
         except spotipy.SpotifyException:
             self._clear_device_cache()  # Geraet evtl. nicht mehr gueltig - neu suchen beim naechsten Versuch
 
+    @_spotify_rate_limit_guard
     def resume(self):
         device_id = self._get_device_id()
         try:
@@ -643,6 +692,7 @@ class SpotifyModule:
                 pass
         self._clear_device_cache()
 
+    @_spotify_rate_limit_guard
     def next_track(self):
         device_id = self._get_device_id()
         try:
@@ -650,6 +700,7 @@ class SpotifyModule:
         except spotipy.SpotifyException:
             self._clear_device_cache()
 
+    @_spotify_rate_limit_guard
     def previous_track(self):
         device_id = self._get_device_id()
         try:
@@ -657,10 +708,12 @@ class SpotifyModule:
         except spotipy.SpotifyException:
             self._clear_device_cache()
 
+    @_spotify_rate_limit_guard
     def set_volume(self, level):
         device_id = self._get_device_id()
         self.sp.volume(int(level), device_id=device_id)
 
+    @_spotify_rate_limit_guard
     def get_status(self):
         if not self.is_authenticated():
             return {"active": False}
@@ -735,6 +788,7 @@ class SpotifyModule:
         except (OSError, json.JSONDecodeError):
             return None
 
+    @_spotify_rate_limit_guard
     def set_repeat(self, mode):
         """mode: 'track' (Titel wiederholen), 'context' (Playlist/Album
         wiederholen) oder 'off'."""
@@ -743,6 +797,7 @@ class SpotifyModule:
         device_id = self._get_device_id()
         self.sp.repeat(mode, device_id=device_id)
 
+    @_spotify_rate_limit_guard
     def set_shuffle(self, enabled):
         device_id = self._get_device_id()
         self.sp.shuffle(bool(enabled), device_id=device_id)
@@ -752,6 +807,7 @@ class SpotifyModule:
             self._current_user_id = self.sp.current_user().get("id")
         return self._current_user_id
 
+    @_spotify_rate_limit_guard
     def get_user_playlists(self):
         """Liste der eigenen Playlists (inkl. private/kollaborative dank
         entsprechender Scopes). Wird EINMAL pro App-Sitzung geladen und
@@ -823,6 +879,7 @@ class SpotifyModule:
         self._user_playlists_cache = results
         return results
 
+    @_spotify_rate_limit_guard
     def get_playlist_tracks(self, playlist_id):
         """Titel einer Playlist, paginiert (limit=10, siehe get_user_playlists).
         Lokale Dateien/entfernte Titel (kein Track-Objekt) werden
@@ -896,6 +953,7 @@ class SpotifyModule:
         self._playlist_tracks_cache[playlist_id] = results
         return results
 
+    @_spotify_rate_limit_guard
     def add_track_to_playlist(self, playlist_id, track_uri):
         self.sp.playlist_add_items(playlist_id, [track_uri])
         # Der Playlist-Cache ist damit veraltet (der neue Titel fehlt darin) -

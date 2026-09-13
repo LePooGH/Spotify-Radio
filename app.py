@@ -167,6 +167,7 @@ input_controller = InputController(
     clk_pin=config.ENCODER_CLK_PIN,
     dt_pin=config.ENCODER_DT_PIN,
     sw_pin=config.ENCODER_SW_PIN,
+    enabled=config.ENCODER_ENABLED,
 )
 
 shutdown_button = ShutdownButton(
