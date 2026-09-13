@@ -144,6 +144,9 @@ function setSubtitle(text, scrolling) {
 
 let lastVolumeInteraction = 0;
 
+const ICON_PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="8,5 8,19 19,12"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="8" y="5" width="3" height="14"/><rect x="13" y="5" width="3" height="14"/></svg>';
+
 async function refreshStatus() {
   try {
     const res = await fetch("/api/status");
@@ -153,7 +156,8 @@ async function refreshStatus() {
       els.title.textContent = "Kein Titel aktiv";
       setSubtitle("\u00A0", false);
       els.cover.hidden = true;
-      els.playPause.textContent = "▶";
+      els.playPause.innerHTML = ICON_PLAY;
+      els.playPause.dataset.playing = "false";
     } else {
       els.title.textContent = data.name || data.title || "—";
       if (data.source === "webradio" && data.song_title) {
@@ -169,7 +173,8 @@ async function refreshStatus() {
       } else {
         els.cover.hidden = true;
       }
-      els.playPause.textContent = data.is_playing ? "⏸" : "▶";
+      els.playPause.innerHTML = data.is_playing ? ICON_PAUSE : ICON_PLAY;
+      els.playPause.dataset.playing = data.is_playing ? "true" : "false";
       if (typeof data.volume_percent === "number" && Date.now() - lastVolumeInteraction > 3000) {
         els.volume.value = data.volume_percent;
       }
@@ -319,9 +324,18 @@ checkForUpdate();
 setInterval(checkForUpdate, 5 * 60 * 1000);
 
 els.playPause.addEventListener("click", async () => {
-  const isPlaying = els.playPause.textContent === "⏸";
+  const isPlaying = els.playPause.dataset.playing === "true";
+  // Sofort optisch umschalten, statt auf die Serverantwort zu warten -
+  // fuehlt sich unmittelbar an, auch wenn Spotify selbst noch einen Moment
+  // braucht. Der naechste Status-Abgleich korrigiert es automatisch,
+  // falls der Befehl doch nicht greifen sollte.
+  els.playPause.innerHTML = isPlaying ? ICON_PLAY : ICON_PAUSE;
+  els.playPause.dataset.playing = isPlaying ? "false" : "true";
+  // Bewusst KEIN sofortiges refreshStatus() hier - Spotify meldet direkt
+  // nach dem Befehl oft noch den alten Zustand zurueck, was unsere gerade
+  // gesetzte Anzeige kurz wieder umkippen wuerde. Der naechste reguraere
+  // Poll (alle 5s) bestaetigt den dann tatsaechlich aktuellen Stand.
   await fetch(isPlaying ? "/api/pause" : "/api/play", { method: "POST" });
-  refreshStatus();
 });
 
 els.next.addEventListener("click", () => fetch("/api/next", { method: "POST" }).then(refreshStatus));

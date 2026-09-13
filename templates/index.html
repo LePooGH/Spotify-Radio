@@ -46,9 +46,15 @@
         </section>
 
         <section class="transport">
-          <button id="btn-prev" class="transport-btn" title="Zurück">⏮</button>
-          <button id="btn-playpause" class="transport-btn transport-btn--main" title="Play/Pause">▶</button>
-          <button id="btn-next" class="transport-btn" title="Weiter">⏭</button>
+          <button id="btn-prev" class="transport-btn" title="Zurück">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="5" width="2" height="14"/><polygon points="18,5 9,12 18,19"/></svg>
+          </button>
+          <button id="btn-playpause" class="transport-btn transport-btn--main" title="Play/Pause" data-playing="false">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="8,5 8,19 19,12"/></svg>
+          </button>
+          <button id="btn-next" class="transport-btn" title="Weiter">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="6,5 15,12 6,19"/><rect x="16" y="5" width="2" height="14"/></svg>
+          </button>
           <span id="playback-modes" class="playback-modes-inline" hidden>
             <button type="button" id="btn-shuffle" class="mode-btn" title="Zufällige Wiedergabe">🔀</button>
             <button type="button" id="btn-repeat" class="mode-btn" title="Wiederholen">🔁</button>
