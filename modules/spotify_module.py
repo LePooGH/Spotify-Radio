@@ -87,8 +87,16 @@ _CATALOG_MAX_PAGES = 50
 
 class SpotifyModule:
     def __init__(self, client_id, client_secret, redirect_uri, device_name=None,
-                 cache_path=".spotify_cache", excluded_keywords=None, excluded_artists=None):
+                 cache_path=".spotify_cache", excluded_keywords=None, excluded_artists=None,
+                 artist_catalog_search_enabled=True):
         self.device_name = device_name
+        # Schalter fuer die teure Diskografie-Aufloesung bei Interpreten-
+        # Treffern (siehe Chat-Verlauf, 15.09.2026: eine einzelne Suche
+        # nach einem Interpreten mit umfangreicher Diskografie konnte
+        # 25+ Spotify-Anfragen ausloesen und damit eine Rate-Sperre
+        # verursachen). Bewusst nicht geloescht, nur abschaltbar - falls
+        # die Funktion spaeter wieder gebraucht wird.
+        self._artist_catalog_search_enabled = artist_catalog_search_enabled
         # Vom Nutzer explizit im Interface ausgewaehltes Ziel-Geraet.
         # Hat Vorrang vor der (nur als Fallback gedachten) device_name-Heuristik.
         self.selected_device_id = None
@@ -493,15 +501,17 @@ class SpotifyModule:
 
         artist_id kann von search_combined() bereits aufgeloest uebergeben
         werden, um eine doppelte "type=artist"-Anfrage zu vermeiden (wird
-        sonst selbst aufgeloest, ggf. aus dem Cache)."""
-        if artist_id is None:
-            artist_id = self._resolve_artist_id(query)
-        if artist_id:
-            if artist_id not in self._top_tracks_cache:
-                self._top_tracks_cache[artist_id] = self._fetch_top_tracks_proxy(artist_id)
-            cached = self._top_tracks_cache[artist_id]
-            if cached is not None:
-                return cached[offset:offset + 10]
+        sonst selbst aufgeloest, ggf. aus dem Cache). Ist die teure
+        Diskografie-Aufloesung deaktiviert, wird das komplett uebersprungen."""
+        if self._artist_catalog_search_enabled:
+            if artist_id is None:
+                artist_id = self._resolve_artist_id(query)
+            if artist_id:
+                if artist_id not in self._top_tracks_cache:
+                    self._top_tracks_cache[artist_id] = self._fetch_top_tracks_proxy(artist_id)
+                cached = self._top_tracks_cache[artist_id]
+                if cached is not None:
+                    return cached[offset:offset + 10]
 
         raw = self.sp.search(q=query, type="track", limit=10, offset=offset)
         items = raw.get("tracks", {}).get("items", [])
@@ -522,20 +532,20 @@ class SpotifyModule:
         Anfrage, seitenweise ueber offset abrufbar).
 
         artist_id kann von search_combined() bereits aufgeloest uebergeben
-        werden, um eine doppelte "type=artist"-Anfrage zu vermeiden."""
-        if artist_id is None:
-            artist_id = self._resolve_artist_id(query)
-        if artist_id:
-            if artist_id not in self._discography_cache:
-                catalog = self._get_artist_catalog(artist_id)
-                # Reine Kompilationen bleiben der Best-Of-Suche vorbehalten,
-                # damit die Alben-Spalte nicht mit Zusammenstellungen
-                # ueberladen wird, die die eigentliche Diskografie doppeln.
-                regular = [a for a in catalog if a.get("album_type") != "compilation"]
-                regular.sort(key=self._album_sort_key)
-                self._discography_cache[artist_id] = self._format_and_filter(regular, "album")
-            full_list = self._discography_cache[artist_id]
-            return full_list[offset:offset + 10]
+        werden, um eine doppelte "type=artist"-Anfrage zu vermeiden. Ist
+        die teure Diskografie-Aufloesung deaktiviert, wird das komplett
+        uebersprungen."""
+        if self._artist_catalog_search_enabled:
+            if artist_id is None:
+                artist_id = self._resolve_artist_id(query)
+            if artist_id:
+                if artist_id not in self._discography_cache:
+                    catalog = self._get_artist_catalog(artist_id)
+                    regular = [a for a in catalog if a.get("album_type") != "compilation"]
+                    regular.sort(key=self._album_sort_key)
+                    self._discography_cache[artist_id] = self._format_and_filter(regular, "album")
+                full_list = self._discography_cache[artist_id]
+                return full_list[offset:offset + 10]
 
         raw = self.sp.search(q=query, type="album", limit=10, offset=offset)
         items = self._dedupe_by_name(raw.get("albums", {}).get("items", []))
@@ -612,6 +622,19 @@ class SpotifyModule:
         cached = self._search_disk_cache.get(cache_key)
         if cached is not None:
             return cached
+
+        if not self._artist_catalog_search_enabled:
+            # Vereinfachter Modus: EINE einzige Spotify-Anfrage (Titel UND
+            # Alben zusammen ueber type="track,album"), keine Interpreten-
+            # Aufloesung, keine Diskografie-Abfrage.
+            raw = self.sp.search(q=query, type="track,album", limit=10)
+            tracks = self._format_and_filter(raw.get("tracks", {}).get("items", []), "track")
+            albums_raw = self._dedupe_by_name(raw.get("albums", {}).get("items", []))
+            albums_raw.sort(key=self._album_sort_key)
+            albums = self._format_and_filter(albums_raw, "album")
+            result = {"tracks": tracks, "albums": albums}
+            self._search_disk_cache.set(cache_key, result)
+            return result
 
         artist_id = self._resolve_artist_id(query)
         tracks = self._tracks_for_query(query, offset=0, artist_id=artist_id)

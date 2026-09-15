@@ -107,3 +107,4 @@ SHUTDOWN_BUTTON_PIN = int(os.getenv("SHUTDOWN_BUTTON_PIN", 26))
 SHUTDOWN_BUTTON_HOLD_SECONDS = float(os.getenv("SHUTDOWN_BUTTON_HOLD_SECONDS", 3))
 SHUTDOWN_BUTTON_ENABLED = os.getenv("SHUTDOWN_BUTTON_ENABLED", "true").lower() == "true"
 ENCODER_ENABLED = os.getenv("ENCODER_ENABLED", "true").lower() == "true"
+ARTIST_CATALOG_SEARCH_ENABLED = os.getenv("ARTIST_CATALOG_SEARCH_ENABLED", "true").lower() == "true"

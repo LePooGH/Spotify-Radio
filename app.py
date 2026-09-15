@@ -56,6 +56,7 @@ spotify = SpotifyModule(
     device_name=config.SPOTIFY_DEVICE_NAME,
     excluded_keywords=config.SEARCH_EXCLUDED_KEYWORDS,
     excluded_artists=config.SEARCH_EXCLUDED_ARTISTS,
+    artist_catalog_search_enabled=config.ARTIST_CATALOG_SEARCH_ENABLED,
 )
 
 # Externe Diskografie-Vorab-Suche (iTunes Search API) - siehe Chat-Verlauf:
