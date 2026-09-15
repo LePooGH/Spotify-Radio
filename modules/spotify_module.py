@@ -777,6 +777,15 @@ class SpotifyModule:
         except OSError:
             pass  # Persistierung ist ein Komfort-Feature, kein Muss
 
+    def get_rate_limit_status(self):
+        """Liefert den aktuellen Sperr-Status, unabhaengig von einem
+        echten API-Aufruf - fuers Anzeigen eines Hinweisfensters in der
+        Oberflaeche (siehe Chat-Verlauf, 15.09.2026)."""
+        remaining = self._rate_limited_until - time.time()
+        if remaining > 0:
+            return {"rate_limited": True, "retry_after_seconds": int(remaining) + 1}
+        return {"rate_limited": False, "retry_after_seconds": None}
+
     def get_last_played(self):
         """Liefert den zuletzt gespielten Titel aus der Festplatten-
         Zwischenspeicherung, oder None, falls noch nie etwas gespielt wurde.

@@ -76,6 +76,7 @@ async function switchSource(source) {
     body: JSON.stringify({ source }),
   });
   if (source === "usb") loadUsbList();
+  if (source === "spotify") checkSpotifyRateLimit();
   refreshStatus();
 }
 
@@ -1629,3 +1630,62 @@ document.getElementById("network-modal-cancel").addEventListener("click", closeN
 
 refreshNetworkStatus();
 setInterval(refreshNetworkStatus, 15000);
+
+// --- Spotify-Rate-Limit-Hinweis ----------------------------------------------
+
+let rateLimitInterval = null;
+let rateLimitDismissed = false;
+
+async function checkSpotifyRateLimit() {
+  try {
+    const res = await fetch("/api/spotify/rate_limit_status");
+    const data = await res.json();
+    if (data.rate_limited) {
+      rateLimitDismissed = false;
+      startRateLimitCountdown(data.retry_after_seconds);
+    } else {
+      hideRateLimitBanner();
+    }
+  } catch (err) {
+    // Fehler beim Abrufen ignorieren wir bewusst - kein Hinweis ist
+    // harmloser als ein stoerender Fehler fuer dieses Komfort-Feature.
+  }
+}
+
+function startRateLimitCountdown(seconds) {
+  if (rateLimitInterval) clearInterval(rateLimitInterval);
+  let remaining = seconds;
+  const banner = document.getElementById("rate-limit-banner");
+  const countdownEl = document.getElementById("rate-limit-countdown");
+  if (!rateLimitDismissed) banner.hidden = false;
+
+  const update = () => {
+    if (remaining <= 0) {
+      hideRateLimitBanner();
+      return;
+    }
+    const h = String(Math.floor(remaining / 3600)).padStart(2, "0");
+    const m = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
+    const s = String(remaining % 60).padStart(2, "0");
+    countdownEl.textContent = `${h}:${m}:${s}`;
+    remaining -= 1;
+  };
+  update();
+  rateLimitInterval = setInterval(update, 1000);
+}
+
+function hideRateLimitBanner() {
+  if (rateLimitInterval) {
+    clearInterval(rateLimitInterval);
+    rateLimitInterval = null;
+  }
+  document.getElementById("rate-limit-banner").hidden = true;
+}
+
+document.getElementById("rate-limit-close").addEventListener("click", () => {
+  rateLimitDismissed = true;
+  document.getElementById("rate-limit-banner").hidden = true;
+  // Der Countdown laeuft im Hintergrund weiter - beim naechsten Wechsel
+  // zu Spotify erscheint das Fenster wieder, falls die Sperre noch
+  // aktiv ist.
+});

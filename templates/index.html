@@ -74,6 +74,11 @@
         </section>
 
         <section id="panel-spotify" class="source-panel active">
+          <div id="rate-limit-banner" class="rate-limit-banner" hidden>
+            <span class="rate-limit-banner-text">Spotify vorübergehend gesperrt - noch</span>
+            <span id="rate-limit-countdown" class="rate-limit-countdown">00:00:00</span>
+            <button type="button" id="rate-limit-close" class="rate-limit-close-btn">✕</button>
+          </div>
           <div class="device-row">
             <button id="device-toggle" class="secondary-btn">🔊 Ausgabegerät wählen</button>
             <ul id="device-list" class="result-list" hidden></ul>

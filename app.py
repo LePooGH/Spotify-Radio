@@ -356,6 +356,11 @@ def spotify_last_played():
     return jsonify(spotify.get_last_played() or {})
 
 
+@app.route("/api/spotify/rate_limit_status")
+def spotify_rate_limit_status():
+    return jsonify(spotify.get_rate_limit_status())
+
+
 @app.route("/api/network/status")
 def network_status_route():
     return jsonify(network_status.get_status())
