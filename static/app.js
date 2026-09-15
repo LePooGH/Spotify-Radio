@@ -1539,3 +1539,93 @@ document.getElementById("schedule-modal-save").addEventListener("click", async (
 });
 
 loadSchedule();
+
+// --- WLAN-Status & -Verbindung ----------------------------------------------
+
+async function refreshNetworkStatus() {
+  try {
+    const res = await fetch("/api/network/status");
+    const data = await res.json();
+    const btn = document.getElementById("btn-wifi");
+    btn.classList.toggle("side-btn--disconnected", !data.connected);
+    btn.title = data.connected
+      ? `WLAN: ${data.ssid}`
+      : "WLAN getrennt - antippen zum Verbinden";
+  } catch (err) {
+    // Fehler beim Abrufen selbst ignorieren wir bewusst - kann z.B. beim
+    // Neustart der App kurz passieren, naechster Poll korrigiert es.
+  }
+}
+
+function openNetworkModal() {
+  document.getElementById("network-modal-overlay").hidden = false;
+  showNetworkStatusView();
+}
+
+function closeNetworkModal() {
+  document.getElementById("network-modal-overlay").hidden = true;
+}
+
+async function showNetworkStatusView() {
+  const body = document.getElementById("network-modal-body");
+  body.innerHTML = '<div class="schedule-timer-status">Lade Status…</div>';
+  const res = await fetch("/api/network/status");
+  const data = await res.json();
+  const statusText = data.connected ? `Verbunden mit: ${data.ssid}` : "Nicht verbunden";
+  body.innerHTML = `
+    <div class="schedule-timer-status">${statusText}</div>
+    <button type="button" id="network-scan-btn" class="power-modal-btn">Netzwerke suchen</button>
+  `;
+  document.getElementById("network-scan-btn").addEventListener("click", showNetworkScanView);
+}
+
+async function showNetworkScanView() {
+  const body = document.getElementById("network-modal-body");
+  body.innerHTML = '<div class="schedule-timer-status">Suche Netzwerke…</div>';
+  const res = await fetch("/api/network/scan");
+  const networks = await res.json();
+  if (networks.length === 0) {
+    body.innerHTML = '<div class="schedule-timer-status">Keine Netzwerke gefunden.</div>';
+    return;
+  }
+  body.innerHTML = networks
+    .map((n) => `<button type="button" class="power-modal-btn network-ssid-btn" data-ssid="${n.ssid}"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:6px;"><rect x="3" y="14" width="3" height="6"/><rect x="8" y="10" width="3" height="10"/><rect x="13" y="6" width="3" height="14"/><rect x="18" y="2" width="3" height="18"/></svg>${n.ssid}</button>`)
+    .join("");
+  document.querySelectorAll(".network-ssid-btn").forEach((btn) => {
+    btn.addEventListener("click", () => showNetworkPasswordView(btn.dataset.ssid));
+  });
+}
+
+function showNetworkPasswordView(ssid) {
+  const body = document.getElementById("network-modal-body");
+  body.innerHTML = `
+    <div class="schedule-timer-status">${ssid}</div>
+    <input type="password" id="network-password-input" placeholder="WLAN-Passwort">
+    <button type="button" id="network-connect-btn" class="power-modal-btn">Verbinden</button>
+  `;
+  document.getElementById("network-connect-btn").addEventListener("click", async () => {
+    const password = document.getElementById("network-password-input").value;
+    body.innerHTML = '<div class="schedule-timer-status">Verbinde…</div>';
+    const res = await fetch("/api/network/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ssid, password }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      body.innerHTML = '<div class="schedule-timer-status">Verbunden!</div>';
+      refreshNetworkStatus();
+      setTimeout(closeNetworkModal, 1500);
+    } else {
+      body.innerHTML = `<div class="schedule-timer-status">Fehler: ${data.error || "unbekannt"}</div>
+        <button type="button" id="network-retry-btn" class="power-modal-btn">Erneut versuchen</button>`;
+      document.getElementById("network-retry-btn").addEventListener("click", () => showNetworkPasswordView(ssid));
+    }
+  });
+}
+
+document.getElementById("btn-wifi").addEventListener("click", openNetworkModal);
+document.getElementById("network-modal-cancel").addEventListener("click", closeNetworkModal);
+
+refreshNetworkStatus();
+setInterval(refreshNetworkStatus, 15000);

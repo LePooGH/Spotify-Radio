@@ -24,6 +24,7 @@ from modules.usb_module import USBModule
 from modules.input_controller import InputController
 from modules.shutdown_button import ShutdownButton
 from modules.scheduler import Scheduler
+from modules import network_status
 
 app = Flask(__name__)
 
@@ -353,6 +354,26 @@ def spotify_last_played():
     - fuers Anzeigen von 'Aktuelles Album' schon vor der ersten echten
     Wiedergabe nach einem App-Start."""
     return jsonify(spotify.get_last_played() or {})
+
+
+@app.route("/api/network/status")
+def network_status_route():
+    return jsonify(network_status.get_status())
+
+
+@app.route("/api/network/scan")
+def network_scan_route():
+    return jsonify(network_status.scan_networks())
+
+
+@app.route("/api/network/connect", methods=["POST"])
+def network_connect_route():
+    data = request.json or {}
+    ssid = data.get("ssid")
+    password = data.get("password", "")
+    if not ssid:
+        return jsonify({"ok": False, "error": "SSID fehlt"}), 400
+    return jsonify(network_status.connect(ssid, password))
 
 
 @app.route("/api/system/shutdown", methods=["POST"])

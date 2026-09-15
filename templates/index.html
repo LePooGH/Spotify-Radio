@@ -10,6 +10,12 @@
 </head>
 <body>
 
+  <div class="side-controls side-controls--top-left">
+    <button id="btn-wifi" class="side-btn" title="WLAN-Verbindung">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="3" y="14" width="3" height="6"/><rect x="8" y="10" width="3" height="10"/><rect x="13" y="6" width="3" height="14"/><rect x="18" y="2" width="3" height="18"/></svg>
+    </button>
+  </div>
+
   <div class="side-controls">
     <button id="btn-sleep-time" class="side-btn" title="Aus-Zeit einstellen">☾</button>
     <button id="btn-wake-time" class="side-btn" title="Aufwach-Zeit einstellen">⏰</button>
@@ -144,6 +150,16 @@
       <div id="power-modal-body"></div>
       <div class="schedule-modal-actions">
         <button type="button" id="power-modal-cancel" class="schedule-modal-btn schedule-modal-btn--secondary">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="network-modal-overlay" class="schedule-modal-overlay" hidden>
+    <div class="schedule-modal">
+      <h3 id="network-modal-title">WLAN</h3>
+      <div id="network-modal-body"></div>
+      <div class="schedule-modal-actions">
+        <button type="button" id="network-modal-cancel" class="schedule-modal-btn schedule-modal-btn--secondary">Schließen</button>
       </div>
     </div>
   </div>

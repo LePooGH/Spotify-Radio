@@ -10,3 +10,4 @@ __pycache__/
 sample_usb/*
 !sample_usb/.gitkeep
 .schedule.json
+.spotify_search_cache.json

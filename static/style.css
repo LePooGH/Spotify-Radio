@@ -861,3 +861,28 @@ input[type="range"]::-moz-range-thumb {
 .side-btn[hidden] {
   display: none;
 }
+
+/* --- WLAN-Button oben links ------------------------------------------------ */
+
+.side-controls--top-left {
+  left: 24px;
+  right: auto;
+}
+
+.side-btn--disconnected {
+  background: linear-gradient(160deg, #e0645f, #a83e3e);
+  border-color: #a83e3e;
+  color: #fff;
+}
+
+.schedule-modal input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dark);
+  background: #0d0b09;
+  color: var(--cream);
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
