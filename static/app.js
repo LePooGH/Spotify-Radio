@@ -450,7 +450,12 @@ async function updateCurrentAlbumPanel(data) {
       const res = await fetch(`/api/spotify/playlist/${playlistId}/tracks`);
       const tracks = await res.json();
       if (tracks.error) {
-        els.currentAlbumTracks.innerHTML = `<li class="result-empty">Fehler: ${tracks.error}</li>`;
+        // Spotifys eigene, algorithmisch erstellte Playlists (z.B. "Dein
+        // Mix", ID-Praefix "37i9dQZF1E...") lassen sich oft nicht wie
+        // normale Playlists abrufen (siehe Chat-Verlauf, 15.09.2026) -
+        // freundlicher Hinweis statt der rohen technischen Fehlermeldung.
+        els.currentAlbumTracks.innerHTML =
+          '<li class="result-empty">Titelliste fuer diese Playlist nicht verfuegbar (z.B. bei von Spotify automatisch erstellten Playlists).</li>';
         return;
       }
       renderSpotifyRightPanelTracks(tracks);
@@ -572,7 +577,12 @@ function updateAlbumsViewUI() {
   }
   const panelHeading = document.getElementById("current-album-heading");
   if (panelHeading) panelHeading.textContent = albumsView === "playlists" ? "Aktuelle Playlist" : "Aktuelles Album";
-  if (albumsView === "playlists" && !state.playlistsCache) {
+  if (albumsView === "playlists" && els.playlistsList.children.length === 0) {
+    // Bewusst NICHT !state.playlistsCache pruefen - dieser Zwischenspeicher
+    // wird seit heute auch von der automatischen "aktuelle Playlist
+    // anzeigen"-Funktion (ensurePlaylistsLoaded) gesetzt, OHNE dass dabei
+    // die sichtbare Liste hier gerendert wird. Stattdessen direkt die
+    // sichtbare Liste selbst pruefen (siehe Chat-Verlauf, 15.09.2026).
     loadSpotifyPlaylists();
   }
   if (albumsView === "online" && !els.onlineResults.innerHTML.trim()) {
