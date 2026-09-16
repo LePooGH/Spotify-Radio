@@ -251,14 +251,49 @@ def status():
     return jsonify(data)
 
 
+# Merkt sich, wann Spotify zuletzt pausiert wurde - genutzt, um beim
+# Fortsetzen nach einer langen Pause zu pruefen, ob die Spotify-Connect-
+# Verbindung noch funktioniert (siehe Chat-Verlauf, 15.09.2026: nach
+# 30-40 Minuten Pause verlor sich das Ausgabegeraet zuverlaessig, nur ein
+# kompletter Neustart half dauerhaft).
+_last_spotify_pause_time = {"ts": None}
+_STALE_SESSION_THRESHOLD_SECONDS = 30 * 60
+
+
+def _spotify_connection_healthy():
+    """Prueft, ob unser eigenes Geraet noch in Spotifys Connect-
+    Geraeteliste auftaucht - verschwindet es nach langer Inaktivitaet,
+    ist das ein zuverlaessiges Zeichen fuer eine haengengebliebene
+    Sitzung."""
+    try:
+        devices = spotify.list_devices()
+        return any(d.get("name") == config.SPOTIFY_DEVICE_NAME for d in devices)
+    except Exception:
+        return False
+
+
 @app.route("/api/play", methods=["POST"])
 def play():
+    if (
+        active_source["name"] == "spotify"
+        and _last_spotify_pause_time["ts"] is not None
+        and time.time() - _last_spotify_pause_time["ts"] > _STALE_SESSION_THRESHOLD_SECONDS
+    ):
+        if not _spotify_connection_healthy() and spotify_connect_daemon is not None:
+            print("[StaleSession] Spotify-Verbindung nach langer Pause nicht mehr gesund - starte librespot neu...")
+            spotify_connect_daemon.stop()
+            time.sleep(1)
+            spotify_connect_daemon.start()
+            time.sleep(2)
+    _last_spotify_pause_time["ts"] = None
     _current_module().resume()
     return jsonify({"ok": True})
 
 
 @app.route("/api/pause", methods=["POST"])
 def pause():
+    if active_source["name"] == "spotify":
+        _last_spotify_pause_time["ts"] = time.time()
     _current_module().pause()
     return jsonify({"ok": True})
 
