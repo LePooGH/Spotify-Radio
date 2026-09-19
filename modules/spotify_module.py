@@ -42,11 +42,32 @@ def _spotify_rate_limit_guard(method):
             return method(self, *args, **kwargs)
         except spotipy.SpotifyException as exc:
             if exc.http_status == 429:
-                retry_after = 60
+                retry_after = None
                 try:
-                    retry_after = int(exc.headers.get("Retry-After", 60))
+                    retry_after = int(exc.headers.get("Retry-After", 0)) or None
                 except (AttributeError, TypeError, ValueError):
-                    pass
+                    retry_after = None
+                if retry_after is not None:
+                    # Spotify hat diesmal eine konkrete Wartezeit mitgeschickt -
+                    # der ist zu vertrauen, Zaehler fuer die naechste Serie
+                    # zuruecksetzen.
+                    self._consecutive_rate_limit_hits = 0
+                else:
+                    # Spotifys undokumentiertes Dev-Mode-Limit liefert in der
+                    # Praxis meist KEINEN Retry-After-Header mit. Kommt kurz
+                    # nach Ablauf einer vorherigen Sperre direkt die naechste
+                    # 429, war die vorherige Schaetzung zu kurz - die
+                    # Wartezeit wird deshalb bei aufeinanderfolgenden
+                    # Treffern verdoppelt (60s, 120s, 240s, ... max. 15
+                    # Minuten), statt immer wieder mit denselben 60s gegen
+                    # dieselbe Sperre zu rennen.
+                    now = time.time()
+                    if self._last_rate_limit_hit_at is not None and now - self._last_rate_limit_hit_at < 300:
+                        self._consecutive_rate_limit_hits += 1
+                    else:
+                        self._consecutive_rate_limit_hits = 1
+                    retry_after = min(60 * (2 ** (self._consecutive_rate_limit_hits - 1)), 900)
+                self._last_rate_limit_hit_at = time.time()
                 self._rate_limited_until = time.time() + retry_after
                 raise SpotifyRateLimited(retry_after) from exc
             raise
@@ -147,6 +168,8 @@ class SpotifyModule:
         self._artist_id_disk_cache = DiskCache(".spotify_artist_id_cache.json")
         self._search_disk_cache = DiskCache(".spotify_search_cache.json", ttl_seconds=30 * 24 * 3600)
         self._rate_limited_until = 0
+        self._consecutive_rate_limit_hits = 0
+        self._last_rate_limit_hit_at = None
         # Cache: die eigene Nutzer-ID - noetig, um zu erkennen, ob eine
         # Playlist wirklich einem selbst gehoert (siehe get_user_playlists).
         self._current_user_id = None
@@ -166,7 +189,7 @@ class SpotifyModule:
             cache_path=cache_path,
             open_browser=False,
         )
-        self.sp = spotipy.Spotify(auth_manager=self._auth_manager, requests_timeout=5)
+        self.sp = spotipy.Spotify(auth_manager=self._auth_manager, requests_timeout=5, retries=0)
 
     def is_authenticated(self):
         return self._auth_manager.get_cached_token() is not None
