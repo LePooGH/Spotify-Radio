@@ -539,6 +539,23 @@ def spotify_playlist_add():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/api/spotify/queue/add", methods=["POST"])
+def spotify_queue_add():
+    """Fuegt einen Titel ans Ende der Wiedergabe-Warteschlange an - im
+    Gegensatz zu /playlist/add landet er NICHT dauerhaft in einer
+    gespeicherten Playlist, sondern wird nur einmalig als naechstes
+    abgespielt."""
+    data = request.json or {}
+    uri = data.get("uri")
+    if not uri:
+        return jsonify({"error": "uri fehlt"}), 400
+    try:
+        spotify.add_to_queue(uri)
+        return jsonify({"ok": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/spotify/repeat", methods=["POST"])
 def spotify_repeat():
     mode = (request.json or {}).get("mode", "off")

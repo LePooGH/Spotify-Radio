@@ -144,11 +144,13 @@ function setSubtitle(text, scrolling) {
 }
 
 let lastVolumeInteraction = 0;
+let lastPlaybackModeInteraction = 0;
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="8,5 8,19 19,12"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="8" y="5" width="3" height="14"/><rect x="13" y="5" width="3" height="14"/></svg>';
 const ICON_REPEAT_ALL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>';
 const ICON_REPEAT_ONE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 15V9h-1l-2 1v1h1.5v4H13zM7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>';
+const ICON_QUEUE_ADD = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="3" y="5" width="12" height="2"/><rect x="3" y="11" width="12" height="2"/><rect x="3" y="17" width="8" height="2"/><rect x="16" y="12" width="2" height="8"/><rect x="13" y="15" width="8" height="2"/></svg>';
 
 async function refreshStatus() {
   try {
@@ -191,10 +193,16 @@ async function refreshStatus() {
         ? `🔊 ${data.device_name}`
         : "🔊 Ausgabegerät wählen";
       els.playbackModes.hidden = false;
-      state.shuffleOn = !!data.shuffle_state;
-      state.repeatMode = data.repeat_state || "off";
-      els.btnShuffle.classList.toggle("active", state.shuffleOn);
-      updateRepeatButtonVisual();
+      // Nach einem Shuffle/Repeat-Klick braucht Spotify oft einen Moment,
+      // bis es den neuen Zustand auch wirklich zurueckmeldet - wird das
+      // hier ungebremst uebernommen, kippt der gerade gesetzte Button kurz
+      // wieder zurueck (gleiches Muster wie beim Lautstaerke-Regler oben).
+      if (Date.now() - lastPlaybackModeInteraction > 3000) {
+        state.shuffleOn = !!data.shuffle_state;
+        state.repeatMode = data.repeat_state || "off";
+        els.btnShuffle.classList.toggle("active", state.shuffleOn);
+        updateRepeatButtonVisual();
+      }
     } else {
       els.playbackModes.hidden = true;
     }
@@ -673,6 +681,7 @@ function renderSpotifyRightPanelTracks(tracks) {
         <div class="result-subtitle">${track.artist}</div>
       </div>`;
     li.addEventListener("click", () => playUri(track.uri, `spotify:playlist:${state.currentPlaylistId}`));
+    li.appendChild(createQueueButton(track.uri));
     li.appendChild(createAddButton(track.uri));
     els.currentAlbumTracks.appendChild(li);
   });
@@ -740,6 +749,7 @@ function updateRepeatButtonVisual() {
 }
 
 els.btnShuffle.addEventListener("click", async () => {
+  lastPlaybackModeInteraction = Date.now();
   state.shuffleOn = !state.shuffleOn;
   els.btnShuffle.classList.toggle("active", state.shuffleOn);
   await fetch("/api/spotify/shuffle", {
@@ -750,6 +760,7 @@ els.btnShuffle.addEventListener("click", async () => {
 });
 
 els.btnRepeat.addEventListener("click", async () => {
+  lastPlaybackModeInteraction = Date.now();
   const order = ["off", "context", "track"];
   state.repeatMode = order[(order.indexOf(state.repeatMode) + 1) % order.length];
   updateRepeatButtonVisual();
@@ -818,6 +829,35 @@ async function showAddToPlaylistMenu(anchorLi, trackUri) {
   });
 }
 
+function createQueueButton(trackUri) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "queue-add-btn";
+  btn.title = "Zur Warteschlange hinzufügen";
+  btn.innerHTML = ICON_QUEUE_ADD;
+  btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try {
+      await fetch("/api/spotify/queue/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uri: trackUri }),
+      });
+      btn.classList.add("queue-added");
+    } catch (err) {
+      // still ignorieren - kein Erfolgs-Feedback ist harmloser als ein
+      // stoerender Fehler fuer diese Komfort-Funktion
+    }
+    setTimeout(() => {
+      btn.classList.remove("queue-added");
+      btn.disabled = false;
+    }, 900);
+  });
+  return btn;
+}
+
 function createAddButton(trackUri) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -852,6 +892,7 @@ function renderTrackResults(items, append) {
         <div class="result-subtitle">${item.artist}</div>
       </div>`;
     li.addEventListener("click", () => playUri(item.uri));
+    li.appendChild(createQueueButton(item.uri));
     li.appendChild(createAddButton(item.uri));
     els.trackResults.appendChild(li);
   });

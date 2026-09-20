@@ -710,6 +710,15 @@ class SpotifyModule:
             raise
 
     @_spotify_rate_limit_guard
+    def add_to_queue(self, uri):
+        """Fuegt einen Titel ans Ende der aktuellen Wiedergabe-Warteschlange
+        an - im Unterschied zu einer gespeicherten Playlist ist das nur
+        einmalig: der Titel wird nach dem aktuell laufenden (und ggf.
+        bereits vorgemerkten) Titel abgespielt und ist danach wieder weg."""
+        device_id = self._get_device_id()
+        self.sp.add_to_queue(uri, device_id=device_id)
+
+    @_spotify_rate_limit_guard
     def pause(self):
         device_id = self._get_device_id()
         try:
