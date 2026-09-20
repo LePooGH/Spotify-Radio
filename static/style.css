@@ -637,10 +637,6 @@ input[type="range"]::-moz-range-thumb {
   display: none;
 }
 
-#btn-shuffle, #btn-repeat {
-  display: none;
-}
-
 .mode-btn {
   width: 40px;
   height: 40px;

@@ -147,6 +147,8 @@ let lastVolumeInteraction = 0;
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="8,5 8,19 19,12"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="8" y="5" width="3" height="14"/><rect x="13" y="5" width="3" height="14"/></svg>';
+const ICON_REPEAT_ALL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>';
+const ICON_REPEAT_ONE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 15V9h-1l-2 1v1h1.5v4H13zM7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>';
 
 async function refreshStatus() {
   try {
@@ -728,7 +730,7 @@ async function playPlaylist(playlist) {
 
 function updateRepeatButtonVisual() {
   els.btnRepeat.classList.toggle("active", state.repeatMode !== "off");
-  els.btnRepeat.textContent = state.repeatMode === "track" ? "🔂" : "🔁";
+  els.btnRepeat.innerHTML = state.repeatMode === "track" ? ICON_REPEAT_ONE : ICON_REPEAT_ALL;
   els.btnRepeat.title =
     state.repeatMode === "track"
       ? "Titel wiederholen (aktiv) – klicken zum Ausschalten"
