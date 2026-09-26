@@ -69,6 +69,9 @@ class SpotifyConnectDaemon:
             "--name", self.device_name,
             "--backend", self.backend,
             "--cache", self.cache_dir,
+            # Keine Lieder auf der SD-Karte zwischenspeichern (schont die
+            # Karte) - der Cache-Ordner behaelt trotzdem die Anmeldedaten.
+            "--disable-audio-cache",
             "--initial-volume", str(self.initial_volume),
             "--bitrate", "320",
         ]
