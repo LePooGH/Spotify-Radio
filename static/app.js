@@ -145,6 +145,8 @@ function setSubtitle(text, scrolling) {
 
 let lastVolumeInteraction = 0;
 let lastPlaybackModeInteraction = 0;
+let spotifyIdle = false;   // Spotify aktive Quelle, aber nichts laeuft
+let lastUserActivity = 0;  // letzte Beruehrung des Displays
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="8,5 8,19 19,12"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="8" y="5" width="3" height="14"/><rect x="13" y="5" width="3" height="14"/></svg>';
@@ -156,6 +158,7 @@ async function refreshStatus() {
   try {
     const res = await fetch("/api/status");
     const data = await res.json();
+    spotifyIdle = data.source === "spotify" && !data.is_playing;
 
     if (!data.active) {
       els.title.textContent = "Kein Titel aktiv";
@@ -242,8 +245,43 @@ function updateSpotifyActiveTrack(uri) {
   });
 }
 
-setInterval(refreshStatus, 5000);
-refreshStatus();
+// --- Status-Abfrage im wechselnden Takt -------------------------------------
+// Bei aktiver Spotify-Quelle ist jede Status-Abfrage eine Anfrage an Spotify.
+// Frueher lief sie stur alle 5 s rund um die Uhr (~17.000 Anfragen am Tag),
+// auch wenn niemand zuhoerte - ein Hauptgrund fuer Rate-Limit-Sperren (siehe
+// Protokoll 03.10.2026). Jetzt: alle 5 s, solange etwas laeuft, Web-Radio/USB
+// aktiv ist (die fragen nicht bei Spotify an) oder das Display gerade erst
+// beruehrt wurde - sonst nur alle 30 s.
+const STATUS_POLL_FAST_MS = 5000;
+const STATUS_POLL_IDLE_MS = 30000;
+const USER_ACTIVITY_FAST_WINDOW_MS = 60000;
+let statusPollTimer = null;
+let nextStatusPollAt = 0;
+
+function currentStatusPollDelay() {
+  const recentlyTouched = Date.now() - lastUserActivity < USER_ACTIVITY_FAST_WINDOW_MS;
+  return spotifyIdle && !recentlyTouched ? STATUS_POLL_IDLE_MS : STATUS_POLL_FAST_MS;
+}
+
+function scheduleNextStatusPoll(delay = currentStatusPollDelay()) {
+  clearTimeout(statusPollTimer);
+  nextStatusPollAt = Date.now() + delay;
+  statusPollTimer = setTimeout(async () => {
+    await refreshStatus();
+    scheduleNextStatusPoll();
+  }, delay);
+}
+
+document.addEventListener("pointerdown", () => {
+  lastUserActivity = Date.now();
+  // Lief gerade der langsame Takt, die naechste Abfrage vorziehen, damit die
+  // Anzeige nach dem Antippen wieder zuegig nachzieht.
+  if (nextStatusPollAt - Date.now() > STATUS_POLL_FAST_MS) {
+    scheduleNextStatusPoll(STATUS_POLL_FAST_MS);
+  }
+}, { capture: true });
+
+refreshStatus().finally(() => scheduleNextStatusPoll());
 
 // --- Selbst-Update ueber Git/GitHub -----------------------------------------
 // Eigenes, deutlich selteneres Intervall als der normale Status-Poll (alle
