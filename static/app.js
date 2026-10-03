@@ -146,7 +146,8 @@ function setSubtitle(text, scrolling) {
 let lastVolumeInteraction = 0;
 let lastPlaybackModeInteraction = 0;
 let spotifyIdle = false;   // Spotify aktive Quelle, aber nichts laeuft
-let lastUserActivity = 0;  // letzte Beruehrung des Displays
+let lastUserActivity = Date.now();  // letzte Beruehrung des Displays - der Seitenstart zaehlt mit, damit die
+                                    // ersten 60 s schnell abgefragt werden (Geraete-Aktivierung nach dem Start)
 
 const ICON_PLAY = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="8,5 8,19 19,12"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="8" y="5" width="3" height="14"/><rect x="13" y="5" width="3" height="14"/></svg>';
