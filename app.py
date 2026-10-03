@@ -14,7 +14,7 @@ import time
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 
 import config
-from modules.spotify_module import SpotifyModule
+from modules.spotify_module import SpotifyModule, SpotifyRateLimited
 from modules.spotify_connect import SpotifyConnectDaemon
 from modules.external_search import ExternalSearchModule
 from modules.updater import Updater
@@ -90,6 +90,28 @@ if config.SPOTIFY_CONNECT_ENABLED:
     )
     spotify_connect_daemon.start()
     atexit.register(spotify_connect_daemon.stop)
+
+    def _activate_own_device_after_start():
+        """librespot braucht nach dem Start etwas, bis es bei Spotify als
+        Geraet angemeldet ist. Danach wird es einmalig als Ausgabegeraet
+        aktiviert (siehe activate_own_device_if_idle) - so steht nach einem
+        Neustart nicht mehr das zuletzt benutzte Handy als Ausgabegeraet da.
+        Hoechstens 12 Versuche im Abstand von 15 s, um Spotifys Anfrage-
+        Kontingent zu schonen."""
+        time.sleep(20)
+        for _ in range(12):
+            try:
+                if spotify.activate_own_device_if_idle():
+                    print("[Spotify-Connect] Automatische Geraete-Aktivierung erledigt")
+                    return
+            except SpotifyRateLimited:
+                return
+            except Exception as exc:
+                print(f"[Spotify-Connect] Automatische Geraete-Aktivierung fehlgeschlagen: {exc}")
+            time.sleep(15)
+        print("[Spotify-Connect] Eigenes Geraet nach 3 Minuten noch nicht bei Spotify angemeldet")
+
+    threading.Thread(target=_activate_own_device_after_start, daemon=True).start()
 
 # Web-Radio und USB teilen sich denselben mpv-Player, da am Ende ohnehin nur
 # eine lokale Audioausgabe existiert.

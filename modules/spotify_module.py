@@ -239,6 +239,28 @@ class SpotifyModule:
         ]
 
     @_spotify_rate_limit_guard
+    def activate_own_device_if_idle(self):
+        """Macht nach dem App-Start das eigene Geraet ("Spotty Radio") zum
+        aktiven Spotify-Ausgabegeraet - aber NUR, wenn gerade nirgends etwas
+        laeuft, damit z.B. beim naechtlichen Neustart niemandem die Musik
+        vom Handy weggenommen wird. Rueckgabe: True = erledigt (aktiviert
+        oder bewusst uebersprungen), False = Geraet noch nicht bei Spotify
+        angemeldet, spaeter nochmal versuchen."""
+        if not self.is_authenticated():
+            return True
+        devices = self.sp.devices().get("devices", [])
+        match = self._find_device_by_name(devices)
+        if not match:
+            return False
+        current = self.sp.current_playback()
+        if current and current.get("is_playing"):
+            return True
+        if not (current and (current.get("device") or {}).get("id") == match):
+            self.sp.transfer_playback(match, force_play=False)
+        self._activated_device_id = match
+        return True
+
+    @_spotify_rate_limit_guard
     def set_device(self, device_id):
         """Setzt das Ziel-Geraet fest und verschiebt eine laufende Wiedergabe
         dorthin (falls gerade etwas spielt)."""
