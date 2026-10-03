@@ -25,13 +25,26 @@ class SpotifyRateLimited(Exception):
         super().__init__(f"Spotify vorruebergehend gesperrt, noch {retry_after_seconds}s")
 
 
+def _is_real_rate_limit(exc):
+    """spotipy meldet JEDEN erschoepften Wiederholungsversuch als 429 -
+    auch wenn Spotify in Wahrheit einen voruebergehenden Serverfehler (500,
+    502, 503, 504) geliefert hat. Erkennbar ist das am mitgelieferten Grund
+    ("too many 500 error responses"). Nur echte 429er sind eine Sperre;
+    ein Serverfehler soll KEINE Wartezeit ausloesen (siehe Protokoll
+    03.10.2026, 16:49: ein einzelner 500er sperrte das Radio fuer 60 s)."""
+    if getattr(exc, "http_status", None) != 429:
+        return False
+    reason = str(getattr(exc, "reason", "") or "")
+    return re.search(r"too many 5\d\d error responses", reason) is None
+
+
 def _reraise_if_rate_limited(exc):
     """Viele Methoden fangen SpotifyException ab, um z.B. ein offline
     gegangenes Geraet still zu behandeln. Eine 429 (Rate-Limit) darf dabei
     aber NICHT verschluckt werden - sonst bemerkt der Rate-Limit-Waechter
     die Sperre nicht, setzt keine Wartezeit und jeder weitere Tastendruck
     schickt erneut Anfragen an Spotify (siehe Protokoll 03.10.2026)."""
-    if getattr(exc, "http_status", None) == 429:
+    if _is_real_rate_limit(exc):
         raise exc
 
 
@@ -51,7 +64,7 @@ def _spotify_rate_limit_guard(method):
         try:
             return method(self, *args, **kwargs)
         except spotipy.SpotifyException as exc:
-            if exc.http_status == 429:
+            if _is_real_rate_limit(exc):
                 retry_after = None
                 try:
                     retry_after = int(exc.headers.get("Retry-After", 0)) or None
