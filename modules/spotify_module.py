@@ -25,6 +25,16 @@ class SpotifyRateLimited(Exception):
         super().__init__(f"Spotify vorruebergehend gesperrt, noch {retry_after_seconds}s")
 
 
+def _reraise_if_rate_limited(exc):
+    """Viele Methoden fangen SpotifyException ab, um z.B. ein offline
+    gegangenes Geraet still zu behandeln. Eine 429 (Rate-Limit) darf dabei
+    aber NICHT verschluckt werden - sonst bemerkt der Rate-Limit-Waechter
+    die Sperre nicht, setzt keine Wartezeit und jeder weitere Tastendruck
+    schickt erneut Anfragen an Spotify (siehe Protokoll 03.10.2026)."""
+    if getattr(exc, "http_status", None) == 429:
+        raise exc
+
+
 def _spotify_rate_limit_guard(method):
     """Dekorator fuer alle oeffentlichen Methoden, die self.sp aufrufen:
     Ist eine Sperrzeit aus einem frueheren 429-Fehler bekannt, wird der
@@ -222,7 +232,8 @@ class SpotifyModule:
         self.selected_device_id = device_id
         try:
             self.sp.transfer_playback(device_id, force_play=False)
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             pass  # z.B. wenn aktuell nichts spielt - kein Problem
         self._activated_device_id = device_id
 
@@ -253,7 +264,8 @@ class SpotifyModule:
             return
         try:
             self.sp.transfer_playback(device_id, force_play=False)
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             pass
         self._activated_device_id = device_id
 
@@ -378,7 +390,8 @@ class SpotifyModule:
             raw = self.sp.search(q=query, type="artist", limit=1)
             items = raw.get("artists", {}).get("items", [])
             artist_id = items[0]["id"] if items else None
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             artist_id = None
         self._artist_id_cache[key] = artist_id
         self._artist_id_disk_cache.set(key, {"id": artist_id})
@@ -705,7 +718,8 @@ class SpotifyModule:
                 self.sp.start_playback(device_id=device_id, context_uri=uri)
             else:
                 self.sp.start_playback(device_id=device_id, uris=[uri])
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             self._clear_device_cache()  # Geraet evtl. nicht mehr gueltig - neu suchen beim naechsten Versuch
             raise
 
@@ -723,7 +737,8 @@ class SpotifyModule:
         device_id = self._get_device_id()
         try:
             self.sp.pause_playback(device_id=device_id)
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             self._clear_device_cache()  # Geraet evtl. nicht mehr gueltig - neu suchen beim naechsten Versuch
 
     @_spotify_rate_limit_guard
@@ -732,7 +747,8 @@ class SpotifyModule:
         try:
             self.sp.start_playback(device_id=device_id)
             return
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             pass
         # Kein aktiver Kontext zum Fortsetzen (z.B. frisch gestartete App,
         # noch nichts abgespielt seit dem Start) - stattdessen den zuletzt
@@ -743,6 +759,8 @@ class SpotifyModule:
             try:
                 self.play_uri(last["uri"])
                 return
+            except SpotifyRateLimited:
+                raise
             except Exception:
                 pass
         self._clear_device_cache()
@@ -752,7 +770,8 @@ class SpotifyModule:
         device_id = self._get_device_id()
         try:
             self.sp.next_track(device_id=device_id)
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             self._clear_device_cache()
 
     @_spotify_rate_limit_guard
@@ -760,7 +779,8 @@ class SpotifyModule:
         device_id = self._get_device_id()
         try:
             self.sp.previous_track(device_id=device_id)
-        except spotipy.SpotifyException:
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
             self._clear_device_cache()
 
     @_spotify_rate_limit_guard
