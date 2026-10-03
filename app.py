@@ -99,11 +99,23 @@ if config.SPOTIFY_CONNECT_ENABLED:
         Hoechstens 12 Versuche im Abstand von 15 s, um Spotifys Anfrage-
         Kontingent zu schonen."""
         time.sleep(20)
-        for _ in range(12):
+        for attempt in range(1, 13):
             try:
                 if spotify.activate_own_device_if_idle():
                     print("[Spotify-Connect] Automatische Geraete-Aktivierung erledigt")
                     return
+                # Taucht das Geraet nach gut einer Minute immer noch nicht
+                # auf, ist die Anmeldung von librespot beim Start meist
+                # gescheitert (z.B. WLAN noch nicht ganz bereit) - librespot
+                # versucht es dann nicht von selbst erneut. Ein Neustart von
+                # librespot holt die Anmeldung nach (siehe Protokoll
+                # 03.10.2026: nach dem Hochfahren leere Geraeteliste, nach
+                # App-Neustart sofort da).
+                if attempt in (4, 8):
+                    print("[Spotify-Connect] Eigenes Geraet noch nicht bei Spotify angemeldet - starte librespot neu")
+                    spotify_connect_daemon.stop()
+                    time.sleep(1)
+                    spotify_connect_daemon.start()
             except SpotifyRateLimited:
                 return
             except Exception as exc:
