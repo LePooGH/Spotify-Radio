@@ -98,7 +98,7 @@ if config.SPOTIFY_CONNECT_ENABLED:
         Neustart nicht mehr das zuletzt benutzte Handy als Ausgabegeraet da.
         Hoechstens 12 Versuche im Abstand von 15 s, um Spotifys Anfrage-
         Kontingent zu schonen."""
-        time.sleep(20)
+        time.sleep(8)
         for attempt in range(1, 13):
             try:
                 if spotify.activate_own_device_if_idle():
