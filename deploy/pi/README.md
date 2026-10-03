@@ -28,19 +28,19 @@ selbst kompilierte `librespot` (0.8.0, liegt in `/usr/local/bin/librespot`).
 1. **Raspberry Pi Imager:** Raspberry Pi OS (64-bit, mit Desktop), Benutzer
    `lepoo`, Hostname `Spotty-Radio`, WLAN und SSH einrichten.
 2. **Pakete und Projekt:**
-```bash
+   ```bash
    sudo apt update && sudo apt full-upgrade -y
    sudo apt install -y git mpv python3-venv python3-dev gh
    git clone https://github.com/LePooGH/Spotify-Radio.git ~/Spotify-Radio
    cd ~/Spotify-Radio
    python3 -m venv --system-site-packages venv
    venv/bin/pip install -r requirements.txt
-```
+   ```
 3. **Aus der Sicherung zurückspielen:** `.env`, `.spotify_cache`,
    `.librespot_cache/credentials.json` nach `~/Spotify-Radio/`, außerdem
    `sudo install -m 0755 librespot /usr/local/bin/librespot`.
 4. **Systemdateien installieren:**
-```bash
+   ```bash
    cd ~/Spotify-Radio/deploy/pi
    for f in etc/systemd/system/spotify-radio.service \
             etc/systemd/system/spotify-radio.service.d/unbuffered.conf \
@@ -58,34 +58,34 @@ selbst kompilierte `librespot` (0.8.0, liegt in `/usr/local/bin/librespot`).
    cp home/lepoo/.config/labwc/{autostart,rc.xml,environment} ~/.config/labwc/
    cp home/lepoo/.config/wf-panel-pi/wf-panel-pi.ini ~/.config/wf-panel-pi/
    sudo mkdir -p /var/log/journal
-```
+   ```
 5. **config.txt anpassen** (die Datei selbst nicht kopieren, sie unterscheidet
    sich je nach OS-Version):
-```bash
+   ```bash
    sudo sed -i 's/^dtparam=audio=on/#dtparam=audio=on/; s/^dtoverlay=vc4-kms-v3d$/dtoverlay=vc4-kms-v3d,noaudio/' /boot/firmware/config.txt
    printf '\n[all]\ndtoverlay=hifiberry-dacplus-std\ndtoverlay=disable-bt\n' | sudo tee -a /boot/firmware/config.txt > /dev/null
-```
+   ```
    `cmdline.txt` **nie** von einer anderen Karte kopieren – sie enthält die
    Kennung der jeweiligen Karte, mit einer fremden startet der Pi nicht.
 6. **WLAN-Stromsparmodus aus** (sonst ist das Radio zeitweise per SSH nicht
    erreichbar und librespot verliert die Verbindung):
-```bash
+   ```bash
    C=$(nmcli -t -f NAME,DEVICE connection show --active | grep ':wlan0$' | cut -d: -f1)
    sudo nmcli connection modify "$C" 802-11-wireless.powersave 2
-```
+   ```
 7. **Dienste aktivieren und neu starten:**
-```bash
+   ```bash
    sudo systemctl daemon-reload
    sudo systemctl enable spotify-radio.service spotify-radio-restart.timer
    sudo reboot
-```
+   ```
 8. **GitHub-Anmeldung** (zum Pushen vom Radio aus):
-```bash
+   ```bash
    git config --global user.name "Ole"
    git config --global user.email "ole.kilinc@hotmail.com"
    GH_BROWSER=false gh auth login --hostname github.com --git-protocol https --web
    gh auth setup-git
-```
+   ```
 
 ## Wichtige Hinweise
 
