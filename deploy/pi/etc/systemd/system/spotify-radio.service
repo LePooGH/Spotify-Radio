@@ -1,0 +1,15 @@
+[Unit]
+Description=Spotify Radio Flask App
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lepoo
+WorkingDirectory=/home/lepoo/Spotify-Radio
+ExecStart=/home/lepoo/Spotify-Radio/venv/bin/python app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+sleep 2
+wlr-randr --output DSI-1 --transform 270
+sleep 1
+if [ -f ~/chromium.log ] && [ "$(stat -c%s ~/chromium.log 2>/dev/null || echo 0)" -gt 5000000 ]; then
+  mv ~/chromium.log ~/chromium.log.old
+fi
+echo "=== Start: $(date) ===" >> ~/chromium.log
+for i in $(seq 1 90); do curl -s -o /dev/null --max-time 2 http://localhost:5000/ && break; sleep 1; done
+chromium --class=SpottyRadio --app=http://localhost:5000 --start-maximized --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic --disable-extensions --disable-sync --disable-background-networking --disable-features=Translate >> ~/chromium.log 2>&1 &

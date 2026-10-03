@@ -1,0 +1,8 @@
+[Unit]
+Description=Naechtlicher Neustart des Spotify Radios um 04:00
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+
+[Install]
+WantedBy=timers.target

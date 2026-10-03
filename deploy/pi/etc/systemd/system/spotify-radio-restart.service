@@ -1,0 +1,6 @@
+[Unit]
+Description=Nightly restart of Spotify Radio (Spotify-Sitzung auffrischen) - nur wenn gerade nichts abgespielt wird
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/spotify-radio-conditional-restart.sh
