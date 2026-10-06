@@ -497,7 +497,21 @@ def network_connect_route():
     password = data.get("password", "")
     if not ssid:
         return jsonify({"ok": False, "error": "SSID fehlt"}), 400
-    return jsonify(network_status.connect(ssid, password))
+    result = network_status.connect(ssid, password)
+    # Ein Verbinden ueber den Dialog baut die WLAN-Verbindung neu auf - auch
+    # wenn sie vorher schon stand. Die Verbindung von librespot zu Spotify
+    # reisst dabei ab und wird nicht von selbst wiederhergestellt, das Radio
+    # verschwindet aus der Geraeteliste (siehe Chat-Verlauf 06.10.2026).
+    # Die Unterbrechung ist meist zu kurz fuer _watch_network, deshalb hier
+    # direkt neu anmelden.
+    if result.get("ok") and spotify_connect_daemon is not None:
+        def _relogin():
+            time.sleep(5)
+            print("[Spotify-Connect] WLAN ueber den Dialog verbunden - starte librespot neu")
+            _restart_librespot()
+            _activate_own_device(initial_delay=8)
+        threading.Thread(target=_relogin, daemon=True).start()
+    return jsonify(result)
 
 
 @app.route("/api/system/shutdown", methods=["POST"])

@@ -127,8 +127,13 @@ class SpotifyConnectDaemon:
         if not process or not process.stdout:
             return
         try:
-            for _ in process.stdout:
-                pass
+            for line in process.stdout:
+                # Warnungen und Fehler von librespot (z.B. abgerissene
+                # Verbindung zu Spotify) ins Protokoll durchreichen, alles
+                # andere verwerfen - vorher landete nichts davon im
+                # Protokoll, was die Fehlersuche erschwerte (06.10.2026).
+                if "WARN" in line or "ERROR" in line:
+                    print(f"[librespot] {line.rstrip()}")
         except (OSError, ValueError):
             pass
 
