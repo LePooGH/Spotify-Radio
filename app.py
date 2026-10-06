@@ -7,6 +7,7 @@ Raspberry Pi. config.PLATFORM entscheidet, welche Hardware-Module aktiv sind
 """
 import atexit
 import os
+import socket
 import subprocess
 import threading
 import time
@@ -94,17 +95,27 @@ if config.SPOTIFY_CONNECT_ENABLED:
     _activation_lock = threading.Lock()
 
     def _network_up():
-        """Prueft lokal ueber NetworkManager, ob der Pi mit dem Netz verbunden
-        ist - kostet KEINE Spotify-Anfrage. Ohne nmcli (z.B. Dev-Laptop) wird
-        einfach "verbunden" angenommen."""
+        """Prueft, ob der Pi wirklich ins Internet kommt - kostet KEINE
+        Spotify-Anfrage: WLAN laut NetworkManager verbunden UND der Name
+        api.spotify.com laesst sich aufloesen. Nur "WLAN verbunden" reicht
+        nicht: Am 06.10.2026 war das WLAN da, aber die Namensaufloesung
+        ging ueber eine Minute lang nicht - librespot scheiterte dabei an
+        seiner Anmeldung und blieb verschwunden. Ohne nmcli (z.B.
+        Dev-Laptop) zaehlt nur die Namensaufloesung."""
         try:
             result = subprocess.run(
                 ["nmcli", "-t", "-f", "STATE", "general"],
                 capture_output=True, text=True, timeout=5,
             )
-            return result.stdout.strip().startswith("connected")
+            if not result.stdout.strip().startswith("connected"):
+                return False
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+        try:
+            socket.getaddrinfo("api.spotify.com", 443)
             return True
+        except OSError:
+            return False
 
     def _restart_librespot():
         spotify_connect_daemon.stop()
@@ -128,8 +139,9 @@ if config.SPOTIFY_CONNECT_ENABLED:
                     print("[Spotify-Connect] Kein Netz - Geraete-Aktivierung wartet auf das WLAN")
                     return
                 try:
-                    if spotify.activate_own_device_if_idle():
-                        print("[Spotify-Connect] Automatische Geraete-Aktivierung erledigt")
+                    outcome = spotify.activate_own_device_if_idle()
+                    if outcome:
+                        print(f"[Spotify-Connect] Automatische Geraete-Aktivierung: {outcome}")
                         return
                     # Taucht das Geraet nach gut einer Minute immer noch nicht
                     # auf, ist die Anmeldung von librespot meist gescheitert -
