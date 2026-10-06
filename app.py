@@ -91,39 +91,88 @@ if config.SPOTIFY_CONNECT_ENABLED:
     spotify_connect_daemon.start()
     atexit.register(spotify_connect_daemon.stop)
 
-    def _activate_own_device_after_start():
+    _activation_lock = threading.Lock()
+
+    def _network_up():
+        """Prueft lokal ueber NetworkManager, ob der Pi mit dem Netz verbunden
+        ist - kostet KEINE Spotify-Anfrage. Ohne nmcli (z.B. Dev-Laptop) wird
+        einfach "verbunden" angenommen."""
+        try:
+            result = subprocess.run(
+                ["nmcli", "-t", "-f", "STATE", "general"],
+                capture_output=True, text=True, timeout=5,
+            )
+            return result.stdout.strip().startswith("connected")
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            return True
+
+    def _restart_librespot():
+        spotify_connect_daemon.stop()
+        time.sleep(1)
+        spotify_connect_daemon.start()
+
+    def _activate_own_device(initial_delay):
         """librespot braucht nach dem Start etwas, bis es bei Spotify als
         Geraet angemeldet ist. Danach wird es einmalig als Ausgabegeraet
         aktiviert (siehe activate_own_device_if_idle) - so steht nach einem
         Neustart nicht mehr das zuletzt benutzte Handy als Ausgabegeraet da.
         Hoechstens 12 Versuche im Abstand von 15 s, um Spotifys Anfrage-
-        Kontingent zu schonen."""
-        time.sleep(8)
-        for attempt in range(1, 13):
-            try:
-                if spotify.activate_own_device_if_idle():
-                    print("[Spotify-Connect] Automatische Geraete-Aktivierung erledigt")
+        Kontingent zu schonen. Bricht ab, sobald das Netz weg ist - dann
+        uebernimmt _watch_network, wenn es wieder da ist."""
+        if not _activation_lock.acquire(blocking=False):
+            return  # laeuft bereits
+        try:
+            time.sleep(initial_delay)
+            for attempt in range(1, 13):
+                if not _network_up():
+                    print("[Spotify-Connect] Kein Netz - Geraete-Aktivierung wartet auf das WLAN")
                     return
-                # Taucht das Geraet nach gut einer Minute immer noch nicht
-                # auf, ist die Anmeldung von librespot beim Start meist
-                # gescheitert (z.B. WLAN noch nicht ganz bereit) - librespot
-                # versucht es dann nicht von selbst erneut. Ein Neustart von
-                # librespot holt die Anmeldung nach (siehe Protokoll
-                # 03.10.2026: nach dem Hochfahren leere Geraeteliste, nach
-                # App-Neustart sofort da).
-                if attempt in (4, 8):
-                    print("[Spotify-Connect] Eigenes Geraet noch nicht bei Spotify angemeldet - starte librespot neu")
-                    spotify_connect_daemon.stop()
-                    time.sleep(1)
-                    spotify_connect_daemon.start()
-            except SpotifyRateLimited:
-                return
-            except Exception as exc:
-                print(f"[Spotify-Connect] Automatische Geraete-Aktivierung fehlgeschlagen: {exc}")
-            time.sleep(15)
-        print("[Spotify-Connect] Eigenes Geraet nach 3 Minuten noch nicht bei Spotify angemeldet")
+                try:
+                    if spotify.activate_own_device_if_idle():
+                        print("[Spotify-Connect] Automatische Geraete-Aktivierung erledigt")
+                        return
+                    # Taucht das Geraet nach gut einer Minute immer noch nicht
+                    # auf, ist die Anmeldung von librespot meist gescheitert -
+                    # librespot versucht es dann nicht von selbst erneut. Ein
+                    # Neustart von librespot holt die Anmeldung nach (siehe
+                    # Protokoll 03.10.2026).
+                    if attempt in (4, 8):
+                        print("[Spotify-Connect] Eigenes Geraet noch nicht bei Spotify angemeldet - starte librespot neu")
+                        _restart_librespot()
+                except SpotifyRateLimited:
+                    return
+                except Exception as exc:
+                    print(f"[Spotify-Connect] Automatische Geraete-Aktivierung fehlgeschlagen: {exc}")
+                time.sleep(15)
+            print("[Spotify-Connect] Eigenes Geraet nach 3 Minuten noch nicht bei Spotify angemeldet")
+        finally:
+            _activation_lock.release()
 
-    threading.Thread(target=_activate_own_device_after_start, daemon=True).start()
+    def _watch_network():
+        """Laeuft dauerhaft im Hintergrund: Beim Start und jedes Mal, wenn das
+        WLAN (wieder) verbunden ist, wird librespot neu gestartet und das
+        Radio bei Spotify als Ausgabegeraet angemeldet. Vorher blieb das
+        Geraet dauerhaft verschwunden, wenn das WLAN beim Start fehlte und
+        erst spaeter (z.B. ueber den WLAN-Dialog am Display) verbunden wurde
+        - librespot hatte seine Anmeldung dann laengst aufgegeben (siehe
+        Chat-Verlauf 06.10.2026). Fragt alle 10 s nur lokal NetworkManager
+        ab, keine Spotify-Anfragen."""
+        was_up = _network_up()
+        if was_up:
+            _activate_own_device(initial_delay=8)
+        else:
+            print("[Spotify-Connect] Beim Start kein Netz - warte auf WLAN")
+        while True:
+            time.sleep(10)
+            up = _network_up()
+            if up and not was_up:
+                print("[Spotify-Connect] Netz wieder da - starte librespot neu und melde das Radio bei Spotify an")
+                time.sleep(5)
+                _restart_librespot()
+                _activate_own_device(initial_delay=8)
+            was_up = up
+
+    threading.Thread(target=_watch_network, daemon=True).start()
 
 # Web-Radio und USB teilen sich denselben mpv-Player, da am Ende ohnehin nur
 # eine lokale Audioausgabe existiert.
