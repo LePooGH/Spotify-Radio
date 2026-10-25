@@ -72,6 +72,11 @@ class SpotifyConnectDaemon:
             # Keine Lieder auf der SD-Karte zwischenspeichern (schont die
             # Karte) - der Cache-Ordner behaelt trotzdem die Anmeldedaten.
             "--disable-audio-cache",
+            # Kein Anmelden fremder Konten per Handy (Zeroconf): Am 25.10.2026
+            # hatte ein Handy mit einem anderen Spotify-Konto librespot auf
+            # sich umgemeldet - fuer dieses Konto verweigerte Spotify die
+            # Schluessel, und die Radio-App erreichte das Geraet nicht mehr.
+            "--disable-discovery",
             "--initial-volume", str(self.initial_volume),
             "--bitrate", "320",
         ]
