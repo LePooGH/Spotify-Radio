@@ -341,9 +341,9 @@ function closePowerModal() {
 function showPowerChoice() {
   document.getElementById("power-modal-title").textContent = "Gerät";
   document.getElementById("power-modal-body").innerHTML =
-    '<button type="button" id="power-btn-standby" class="power-modal-btn">☾ Standby (Display aus)</button>' +
-    '<button type="button" id="power-btn-shutdown" class="power-modal-btn">⏻ Herunterfahren</button>' +
-    '<button type="button" id="power-btn-reboot" class="power-modal-btn">↻ Neustarten</button>';
+    '<button type="button" id="power-btn-standby" class="power-modal-btn">Standby (Display aus)</button>' +
+    '<button type="button" id="power-btn-shutdown" class="power-modal-btn">Herunterfahren</button>' +
+    '<button type="button" id="power-btn-reboot" class="power-modal-btn">Neustarten</button>';
   document.getElementById("power-btn-standby").addEventListener("click", enterStandby);
   document.getElementById("power-btn-shutdown").addEventListener("click", () => showPowerConfirm("shutdown"));
   document.getElementById("power-btn-reboot").addEventListener("click", () => showPowerConfirm("reboot"));
