@@ -1,0 +1,3 @@
+# Spotty Radio: Die App (Benutzer lepoo) darf die Display-Beleuchtung schalten
+# (Standby-Modus, Aus-/Aufwach-Zeit).
+SUBSYSTEM=="backlight", RUN+="/bin/chmod 0666 /sys/class/backlight/%k/bl_power /sys/class/backlight/%k/brightness"
