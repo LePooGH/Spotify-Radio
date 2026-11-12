@@ -46,6 +46,10 @@ class Scheduler:
         # des Displays wieder verlassen (siehe Chat-Verlauf 12.11.2026).
         self.standby = False
         self._load()
+        # Nach einem App-Neustart ist der Standby-Zustand vergessen - die
+        # Beleuchtung aber evtl. noch aus (12.11.2026: dunkles Display, das
+        # auf Beruehrung reagierte). Deshalb beim Start immer einschalten.
+        self._set_backlight(True)
         if platform == "pi":
             threading.Thread(target=self._watch_loop, daemon=True).start()
         else:
