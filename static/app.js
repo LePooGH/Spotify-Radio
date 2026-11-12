@@ -160,6 +160,7 @@ async function refreshStatus() {
     const res = await fetch("/api/status");
     const data = await res.json();
     spotifyIdle = data.source === "spotify" && !data.is_playing;
+    applyStandbyState(!!data.standby);
 
     if (!data.active) {
       els.title.textContent = "Kein Titel aktiv";
@@ -340,8 +341,10 @@ function closePowerModal() {
 function showPowerChoice() {
   document.getElementById("power-modal-title").textContent = "Gerät";
   document.getElementById("power-modal-body").innerHTML =
+    '<button type="button" id="power-btn-standby" class="power-modal-btn">☾ Standby (Display aus)</button>' +
     '<button type="button" id="power-btn-shutdown" class="power-modal-btn">⏻ Herunterfahren</button>' +
     '<button type="button" id="power-btn-reboot" class="power-modal-btn">↻ Neustarten</button>';
+  document.getElementById("power-btn-standby").addEventListener("click", enterStandby);
   document.getElementById("power-btn-shutdown").addEventListener("click", () => showPowerConfirm("shutdown"));
   document.getElementById("power-btn-reboot").addEventListener("click", () => showPowerConfirm("reboot"));
 }
@@ -369,6 +372,59 @@ async function executePowerAction(action) {
 
 document.getElementById("btn-power").addEventListener("click", openPowerModal);
 document.getElementById("power-modal-cancel").addEventListener("click", closePowerModal);
+
+// --- Standby (Display aus, Aufwecken per Beruehrung) -------------------------
+// Die schwarze Flaeche wird nur auf dem Radio-Display selbst gezeigt (Seite
+// laeuft dort unter localhost) - ein Handy/Laptop, das die Seite im WLAN
+// oeffnet, soll das Radio ja auch im Standby weiter bedienen koennen.
+const IS_KIOSK = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const standbyOverlay = document.getElementById("standby-overlay");
+let standbyActive = false;
+let standbyWakePending = false;
+
+function applyStandbyState(on) {
+  if (on === standbyActive) return;
+  standbyActive = on;
+  if (IS_KIOSK) {
+    if (on) {
+      standbyOverlay.hidden = false;
+    } else if (!standbyWakePending) {
+      standbyOverlay.hidden = true;
+    }
+  }
+}
+
+async function enterStandby() {
+  closePowerModal();
+  applyStandbyState(true);
+  try {
+    await fetch("/api/standby", { method: "POST" });
+  } catch (err) {
+    // naechster Status-Poll korrigiert die Anzeige
+  }
+}
+
+// Erste Beruehrung weckt auf. Die Flaeche bleibt bis kurz nach dem Loslassen
+// stehen, damit derselbe Fingertipp nicht noch einen Button darunter trifft.
+standbyOverlay.addEventListener("pointerdown", async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (standbyWakePending) return;
+  standbyWakePending = true;
+  try {
+    await fetch("/api/standby/wake", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  } catch (err) {
+    // trotzdem einblenden - naechster Poll korrigiert
+  }
+  standbyActive = false;
+  setTimeout(() => {
+    standbyWakePending = false;
+    standbyOverlay.hidden = true;
+    refreshStatus();
+  }, 400);
+}, { capture: true });
+["pointerup", "click", "touchend"].forEach((ev) =>
+  standbyOverlay.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); }, { capture: true }));
 
 checkForUpdate();
 setInterval(checkForUpdate, 5 * 60 * 1000);
@@ -470,8 +526,9 @@ async function updateCurrentAlbumPanel(data) {
   // das ist es, was nach dem Titel tatsaechlich automatisch weiterspielt
   // (siehe Chat-Verlauf: vorher wurde nach einem Neustart immer das Album
   // gezeigt, obwohl im Hintergrund die Playlist weiterlief).
-  if (data.context_type === "playlist" && data.context_uri) {
-    const playlistId = data.context_uri.split(":").pop();
+  const isLikedContext = !!data.context_uri && data.context_uri.endsWith(":collection");
+  if ((data.context_type === "playlist" || isLikedContext) && data.context_uri) {
+    const playlistId = isLikedContext ? "liked" : data.context_uri.split(":").pop();
     const contextKey = `playlist:${playlistId}`;
     if (contextKey === state.currentAutoContextKey) {
       highlightActiveTrack();
@@ -849,7 +906,7 @@ async function showAddToPlaylistMenu(anchorLi, trackUri) {
     menu.innerHTML = '<li class="result-empty">Keine Playlists gefunden.</li>';
     return;
   }
-  playlists.forEach((pl) => {
+  playlists.filter((pl) => pl.id !== "liked").forEach((pl) => {
     const li = document.createElement("li");
     li.className = "result-item";
     li.innerHTML = `<div class="result-text"><div class="result-title">${pl.name}</div></div>`;

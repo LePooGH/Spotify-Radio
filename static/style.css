@@ -943,3 +943,18 @@ input[type="range"]::-moz-range-thumb {
   padding: 4px 8px;
   line-height: 1;
 }
+
+/* Standby: schwarze Flaeche ueber allem - faengt die erste Beruehrung ab,
+   die das Radio aufweckt, damit sie nicht auf einen Button darunter geht. */
+.standby-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 500;
+  touch-action: none;
+  cursor: none;
+}
+
+.standby-overlay[hidden] {
+  display: none;
+}

@@ -12,6 +12,7 @@ eine einmalige, laufzeitgebundene Aktion, nach einem Neustart waere ein
 Dev-Modus: Weder Zeitplan-Ueberwachung noch Displaybeleuchtung werden
 angefasst (kein Backlight-Sysfs auf dem Laptop vorhanden).
 """
+import glob
 import json
 import os
 import subprocess
@@ -19,7 +20,11 @@ import threading
 import time
 from datetime import datetime
 
-BACKLIGHT_PATH = "/sys/class/backlight/panel_backlight@1/bl_power"
+# Der Name des Backlight-Geraets haengt vom Display/Kernel ab - deshalb
+# wird der erste vorhandene bl_power-Knoten genommen statt eines festen
+# Pfads (06.11.2026: Standby-Modus).
+_BACKLIGHT_CANDIDATES = sorted(glob.glob("/sys/class/backlight/*/bl_power"))
+BACKLIGHT_PATH = _BACKLIGHT_CANDIDATES[0] if _BACKLIGHT_CANDIDATES else "/sys/class/backlight/panel_backlight@1/bl_power"
 
 
 class Scheduler:
@@ -35,6 +40,11 @@ class Scheduler:
         self._last_triggered_minute = None
         self.off_time = None
         self.on_time = None
+        # Standby: Display aus, Wiedergabe gestoppt - wird per Zeitplan
+        # (Aus-Zeit), ueber den Aus-/Neustart-Dialog oder einen Einschlaf-
+        # Timer betreten und per Zeitplan (Aufwach-Zeit) oder Beruehrung
+        # des Displays wieder verlassen (siehe Chat-Verlauf 12.11.2026).
+        self.standby = False
         self._load()
         if platform == "pi":
             threading.Thread(target=self._watch_loop, daemon=True).start()
@@ -96,14 +106,32 @@ class Scheduler:
             if now != self._last_triggered_minute:
                 self._last_triggered_minute = now
                 if self.off_time and now == self.off_time:
-                    print("[Scheduler] Aus-Zeit erreicht - stoppe Wiedergabe.")
-                    self._set_backlight(False)
-                    self._safe_call(self.on_off_action)
+                    print("[Scheduler] Aus-Zeit erreicht - Standby.")
+                    self.enter_standby()
                 if self.on_time and now == self.on_time:
                     print("[Scheduler] Aufwach-Zeit erreicht - setze Wiedergabe fort.")
-                    self._set_backlight(True)
-                    self._safe_call(self.on_wake_action)
+                    self.wake(resume=True)
             time.sleep(15)
+
+    # --- Standby ---------------------------------------------------------------
+
+    def enter_standby(self):
+        """Display aus und Wiedergabe stoppen. Mehrfaches Aufrufen ist
+        unschaedlich."""
+        self.standby = True
+        self._set_backlight(False)
+        self._safe_call(self.on_off_action)
+
+    def wake(self, resume=False):
+        """Display wieder an. resume=True (Aufwach-Zeit) setzt zusaetzlich
+        die letzte Wiedergabe fort; bei einer Beruehrung des Displays
+        (resume=False) bleibt es still, bis jemand Play drueckt."""
+        was_standby = self.standby
+        self.standby = False
+        self._set_backlight(True)
+        if resume:
+            self._safe_call(self.on_wake_action)
+        return was_standby
 
     @staticmethod
     def _safe_call(fn):

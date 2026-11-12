@@ -100,8 +100,16 @@ def _spotify_rate_limit_guard(method):
 SCOPE = (
     "user-modify-playback-state user-read-playback-state "
     "user-read-currently-playing playlist-read-private "
-    "playlist-read-collaborative playlist-modify-public playlist-modify-private"
+    "playlist-read-collaborative playlist-modify-public playlist-modify-private "
+    "user-library-read"
 )
+
+# "Lieblingssongs" (bei Spotify die gespeicherten Titel, /me/tracks) ist
+# keine echte Playlist, wird im Interface aber als erste Playlist angezeigt
+# (siehe Chat-Verlauf 12.11.2026). Diese Pseudo-ID kennzeichnet sie.
+LIKED_PLAYLIST_ID = "liked"
+LIKED_PLAYLIST_NAME = "Lieblingssongs"
+LIKED_COVER_URL = "https://misc.scdn.co/liked-songs/liked-songs-300.png"
 
 # Sortier-Muster fuer Hörspiel-Diskografien wie "Die drei ???":
 # 1. Titel mit vorangestellter Nummer + Schraegstrich (z.B. "264/Der Fluch..."),
@@ -737,6 +745,8 @@ class SpotifyModule:
 
     @_spotify_rate_limit_guard
     def play_uri(self, uri, context_uri=None):
+        if context_uri == f"spotify:playlist:{LIKED_PLAYLIST_ID}":
+            return self.play_liked_songs(start_uri=uri)
         device_id = self._get_device_id()
         if not device_id:
             raise RuntimeError(
@@ -949,6 +959,7 @@ class SpotifyModule:
             return self._user_playlists_cache
 
         current_user_id = self._get_current_user_id()
+        results = [self._liked_songs_entry()]
         playlists = []
         offset = 0
         page = 0
@@ -965,7 +976,6 @@ class SpotifyModule:
             if offset > 200:  # Sicherheitsnetz
                 break
 
-        results = []
         for p in playlists:
             # Spotify liefert gelegentlich "null" fuer Playlists, die nicht
             # mehr verfuegbar sind (z.B. vom Ersteller geloescht) - ueberspringen.
@@ -1037,9 +1047,12 @@ class SpotifyModule:
         while True:
             if page > 0:
                 time.sleep(0.15)
-            raw = self.sp.playlist_items(
-                playlist_id, limit=10, offset=offset, additional_types=("track",),
-            )
+            if playlist_id == LIKED_PLAYLIST_ID:
+                raw = self.sp.current_user_saved_tracks(limit=10, offset=offset)
+            else:
+                raw = self.sp.playlist_items(
+                    playlist_id, limit=10, offset=offset, additional_types=("track",),
+                )
             batch = raw.get("items", [])
             items.extend(batch)
             page += 1
@@ -1071,6 +1084,49 @@ class SpotifyModule:
             })
         self._playlist_tracks_cache[playlist_id] = results
         return results
+
+    def _liked_songs_entry(self):
+        """Eintrag fuer die Playlist-Liste. Die Titelanzahl kostet genau eine
+        Anfrage (limit=1, nur das "total"-Feld interessiert)."""
+        try:
+            total = self.sp.current_user_saved_tracks(limit=1).get("total", 0)
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
+            total = 0
+        return {
+            "id": LIKED_PLAYLIST_ID,
+            "name": LIKED_PLAYLIST_NAME,
+            "cover": LIKED_COVER_URL,
+            "track_count": total,
+            "owned": True,
+        }
+
+    def _liked_context_uri(self):
+        return f"spotify:user:{self._get_current_user_id()}:collection"
+
+    @_spotify_rate_limit_guard
+    def play_liked_songs(self, start_uri=None):
+        """Spielt die Lieblingssongs ab - zuerst ueber Spotifys Sammlungs-
+        Kontext (dann laufen alle Titel mit Shuffle/Repeat wie bei einer
+        Playlist). Lehnt Spotify das ab, werden stattdessen die ersten 100
+        Titel als Liste gestartet, ggf. ab dem angetippten Titel."""
+        device_id = self._get_device_id()
+        try:
+            kwargs = {"context_uri": self._liked_context_uri()}
+            if start_uri:
+                kwargs["offset"] = {"uri": start_uri}
+            self.sp.start_playback(device_id=device_id, **kwargs)
+            return
+        except spotipy.SpotifyException as exc:
+            _reraise_if_rate_limited(exc)
+            print(f"[Spotify] Sammlungs-Kontext abgelehnt ({exc.http_status}) - starte Lieblingssongs als Titelliste")
+        uris = [t["uri"] for t in self.get_playlist_tracks(LIKED_PLAYLIST_ID)]
+        if start_uri in uris:
+            i = uris.index(start_uri)
+            uris = uris[i:] + uris[:i]
+        if not uris:
+            raise RuntimeError("Keine Lieblingssongs gefunden")
+        self.sp.start_playback(device_id=device_id, uris=uris[:100])
 
     @_spotify_rate_limit_guard
     def add_track_to_playlist(self, playlist_id, track_uri):

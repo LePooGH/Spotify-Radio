@@ -15,7 +15,7 @@ import time
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 
 import config
-from modules.spotify_module import SpotifyModule, SpotifyRateLimited
+from modules.spotify_module import SpotifyModule, SpotifyRateLimited, LIKED_PLAYLIST_ID
 from modules.spotify_connect import SpotifyConnectDaemon
 from modules.external_search import ExternalSearchModule
 from modules.updater import Updater
@@ -343,6 +343,7 @@ def status():
         data = {"active": False, "error": str(exc)}
     data["source"] = active_source["name"]
     data["can_skip"] = hasattr(_current_module(), "next_track")
+    data["standby"] = scheduler.standby
     return jsonify(data)
 
 
@@ -544,6 +545,26 @@ def system_reboot():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+@app.route("/api/standby", methods=["GET"])
+def get_standby():
+    return jsonify({"standby": scheduler.standby})
+
+
+@app.route("/api/standby", methods=["POST"])
+def enter_standby():
+    """Standby: Display aus, Wiedergabe gestoppt. Aufwecken per Beruehrung
+    des Displays (siehe app.js) oder Aufwach-Zeit."""
+    scheduler.enter_standby()
+    return jsonify({"ok": True, "standby": True})
+
+
+@app.route("/api/standby/wake", methods=["POST"])
+def wake_from_standby():
+    resume = bool((request.json or {}).get("resume", False))
+    scheduler.wake(resume=resume)
+    return jsonify({"ok": True, "standby": False})
+
+
 @app.route("/api/schedule", methods=["GET"])
 def get_schedule():
     return jsonify(scheduler.get_schedule())
@@ -628,7 +649,10 @@ def spotify_playlist_play():
         return jsonify({"error": "playlist_id fehlt"}), 400
     active_source["name"] = "spotify"
     try:
-        spotify.play_uri(f"spotify:playlist:{playlist_id}")
+        if playlist_id == LIKED_PLAYLIST_ID:
+            spotify.play_liked_songs()
+        else:
+            spotify.play_uri(f"spotify:playlist:{playlist_id}")
         return jsonify({"ok": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
