@@ -18,6 +18,7 @@ selbst kompilierte `librespot` (0.8.0, liegt in `/usr/local/bin/librespot`).
 | `etc/sudoers.d/010-lepoo-shutdown`, `020-lepoo-nmcli` | Herunterfahren/WLAN aus der App ohne Passwort |
 | `etc/systemd/journald.conf.d/90-radio.conf` | Protokoll überlebt Neustarts, max. 50 MB |
 | `etc/chromium/policies/managed/spotty-radio.json` | kein Übersetzungs-Popup |
+| `etc/udev/rules.d/90-spotty-backlight.rules` | App darf die Display-Beleuchtung schalten (Standby, Aus-/Aufwach-Zeit) |
 | `home/lepoo/.config/labwc/autostart` | Display drehen, auf App warten, Chromium starten |
 | `home/lepoo/.config/labwc/rc.xml`, `environment` | Touchscreen auf DSI-1, deutsches Tastaturlayout |
 | `home/lepoo/.config/wf-panel-pi/wf-panel-pi.ini` | Taskleiste komplett ausblenden |
@@ -48,7 +49,8 @@ selbst kompilierte `librespot` (0.8.0, liegt in `/usr/local/bin/librespot`).
             etc/systemd/system/spotify-radio-restart.timer \
             etc/asound.conf \
             etc/systemd/journald.conf.d/90-radio.conf \
-            etc/chromium/policies/managed/spotty-radio.json; do
+            etc/chromium/policies/managed/spotty-radio.json \
+            etc/udev/rules.d/90-spotty-backlight.rules; do
      sudo install -D -m 0644 "$f" "/$f"
    done
    sudo install -m 0755 usr/local/bin/spotify-radio-conditional-restart.sh /usr/local/bin/
