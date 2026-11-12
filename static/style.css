@@ -681,31 +681,6 @@ input[type="range"]::-moz-range-thumb {
   border-color: var(--dial-glow);
 }
 
-@media (max-width: 760px) {
-  .main-layout { flex-direction: column; }
-  .radio-chassis {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
-  body { align-items: flex-start; }
-  .current-album-panel {
-    border-left: none;
-    border-top: 1px solid var(--brass-dark);
-    padding-left: 0;
-    padding-top: 16px;
-    width: 100%;
-  }
-  #current-album-tracks {
-    flex: none;
-    max-height: 28vh;
-  }
-}
-
-@media (max-width: 420px) {
-  .radio-chassis { padding: 14px; }
-  .now-title { font-size: 18px; }
-}
 
 .result-list::-webkit-scrollbar {
   width: 24px;
@@ -957,4 +932,94 @@ input[type="range"]::-moz-range-thumb {
 
 .standby-overlay[hidden] {
   display: none;
+}
+
+/* === Handy-Ansicht (schmale Bildschirme, z.B. Smartphone im Hochformat) ===
+   Das Radio-Display selbst ist 1280 px breit und bleibt davon unberuehrt.
+   Die Seite laeuft dort als "normale" Website im WLAN (http://spotty-radio
+   .local:5000) - Ziel: alles untereinander, grosse Tipp-Flaechen, und die
+   Seiten-Buttons als Leiste am unteren Rand statt ueber dem Inhalt. */
+@media (max-width: 760px) {
+  body {
+    display: block;
+    padding: 0 0 84px;  /* Platz fuer die feste Leiste unten */
+  }
+
+  .radio-chassis {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    padding: 14px 14px 20px;
+  }
+
+  .main-layout { flex-direction: column; gap: 18px; }
+
+  .source-tabs { gap: 6px; margin-bottom: 12px; }
+  .tab { padding: 12px 4px; font-size: 13px; letter-spacing: 0; }
+
+  .dial-display { padding: 14px; min-height: 80px; margin-bottom: 14px; }
+  .now-title { font-size: 18px; }
+
+  .transport { gap: 12px; flex-wrap: wrap; }
+  .playback-modes-inline { margin-left: 0; width: 100%; justify-content: center; }
+
+  /* Suchzeile: Eingabe + Button passen nebeneinander */
+  .search-form input { min-width: 0; padding: 12px 10px; }
+  .search-form button { padding: 12px 14px; flex-shrink: 0; }
+
+  .subtabs { flex-wrap: wrap; }
+  .subtabs--right { justify-content: flex-start; }
+  .subtab { padding: 8px 14px; font-size: 13px; }
+
+  /* Titel und Alben/Hoerspiele untereinander statt nebeneinander */
+  .search-columns { flex-direction: column; gap: 16px; }
+  .search-column .result-list { flex: none; max-height: 40vh; }
+
+  .result-item { padding: 10px 6px; gap: 10px; }
+  .album-expand-toggle { width: 40px; height: 40px; font-size: 16px; }
+  .add-to-playlist-btn, .queue-add-btn { width: 40px; height: 40px; }
+
+  .current-album-panel {
+    border-left: none;
+    border-top: 1px solid var(--brass-dark);
+    padding-left: 0;
+    padding-top: 16px;
+    width: 100%;
+    min-width: 0;
+  }
+  #current-album-tracks { flex: none; max-height: 45vh; }
+
+  .result-list::-webkit-scrollbar { width: 6px; }
+
+  /* Seiten-Buttons: feste Leiste unten (WLAN links, Zeiten mittig, Aus rechts) */
+  .side-controls {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+    flex-direction: row;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 18px;
+    background: rgba(13, 11, 9, 0.88);
+  }
+  .side-controls--top-left { left: 10px; right: auto; }
+  .side-controls:not(.side-controls--top-left):not(.side-controls--bottom) {
+    left: 76px;
+    right: auto;
+  }
+  .side-controls--bottom { bottom: 12px; }
+  .side-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    font-size: 22px;
+    opacity: 0.9;
+  }
+  .side-btn svg { width: 18px; height: 18px; }
+
+  .schedule-modal { min-width: 0; width: calc(100vw - 32px); max-width: 420px; }
+  .add-to-playlist-menu { width: min(260px, calc(100vw - 60px)); }
 }
